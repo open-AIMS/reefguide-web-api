@@ -33,8 +33,8 @@ jobs:
     - name: Start Docker services (PostgreSQL DB)
       run: docker compose up -d
 
-    - name: Copy environment file
-      run: cp .env.example .env
+    - name: Copy environment file and set test mode
+      run: cp .env.example .env && echo -en "\nTEST_MODE=true" >> .env
 
     - name: Generate local keys
       run: npm run local-keys
@@ -46,4 +46,4 @@ jobs:
       run: npm run test
 
     - name: Stop Docker services
-      run: docker-compose down
+      run: docker compose down
