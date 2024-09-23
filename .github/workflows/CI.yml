@@ -22,7 +22,7 @@ jobs:
       run: npm i
 
     - name: Start Docker services (PostgreSQL DB)
-      run: docker-compose up -d
+      run: docker compose up -d
 
     - name: Copy environment file
       run: cp .env.example .env
