@@ -1,11 +1,11 @@
-import passport from "passport";
+import passport from 'passport';
 import {
   ExtractJwt,
   Strategy as JwtStrategy,
   StrategyOptions,
-} from "passport-jwt";
-import { prisma } from "../apiSetup";
-import { publicKeyPem } from "./jwtConfig";
+} from 'passport-jwt';
+import { prisma } from '../apiSetup';
+import { publicKeyPem } from './jwtConfig';
 
 /**
  * Options for configuring the JWT strategy
@@ -26,7 +26,7 @@ const options: StrategyOptions = {
 
   // Indicate we are using RS256 which is the algorithm for the asymmetric key
   // pair
-  algorithms: ["RS256"],
+  algorithms: ['RS256'],
 };
 
 /**
@@ -55,7 +55,7 @@ passport.use(
       // If an error occurred, pass it to the `done` callback
       return done(error, false);
     }
-  })
+  }),
 );
 
 // Export the configured Passport instance

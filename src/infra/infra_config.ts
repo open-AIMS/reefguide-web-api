@@ -1,12 +1,12 @@
-import * as fs from "fs";
-import * as path from "path";
-import * as z from "zod";
+import * as fs from 'fs';
+import * as path from 'path';
+import * as z from 'zod';
 
 export const ReefGuideFrontendConfigSchema = z.object({
   /** The index document of the website */
-  indexDocument: z.string().default("index.html"),
+  indexDocument: z.string().default('index.html'),
   /** The error document of the website */
-  errorDocument: z.string().default("error.html"),
+  errorDocument: z.string().default('error.html'),
 });
 export type ReefGuideFrontendConfig = z.infer<
   typeof ReefGuideFrontendConfigSchema
@@ -18,7 +18,7 @@ export const ReefGuideAPIConfigSchema = z.object({
   /** ReefGuideAPI.jl docker image */
   port: z.number().default(8000),
   /** reefGuide docker image e.g. latest, sha-123456 */
-  reefGuideDockerImageTag: z.string().default("latest"),
+  reefGuideDockerImageTag: z.string().default('latest'),
   /** The number of CPU units for the Fargate task */
   cpu: z.number().int().positive(),
   /** The amount of memory (in MiB) for the Fargate task */
@@ -61,7 +61,7 @@ export const WebAPIConfigSchema = z.object({
   // variables at lambda runtime
   apiSecretsArn: z.string(),
   // Node env runtime variable e.g. development, production
-  nodeEnv: z.string().default("development"),
+  nodeEnv: z.string().default('development'),
   // Server port
   port: z.number().default(5000),
 });
@@ -71,11 +71,11 @@ const DomainsConfigSchema = z.object({
   /** The base domain for all services. Note: Apex domains are not currently supported. */
   baseDomain: z.string(),
   /** The subdomain prefix for the ECS ReefGuideAPI service */
-  reefGuideAPI: z.string().default("guide-api"),
+  reefGuideAPI: z.string().default('guide-api'),
   /** The subdomain prefix for the Web REST API in this repo */
-  webAPI: z.string().default("web-api"),
+  webAPI: z.string().default('web-api'),
   /** The subdomain prefix for the frontend app */
-  frontend: z.string().default("app"),
+  frontend: z.string().default('app'),
 });
 
 // Define the configuration schema using Zod
@@ -100,7 +100,7 @@ export const DeploymentConfigSchema = z.object({
     // AWS Account ID
     account: z.string(),
     // AWS Region
-    region: z.string().default("ap-southeast-2"),
+    region: z.string().default('ap-southeast-2'),
   }),
 
   // Configuration for the web API deployment (this repo)
@@ -118,7 +118,7 @@ export type DeploymentConfig = z.infer<typeof DeploymentConfigSchema>;
 export const getConfigFromFile = (filePath: string): DeploymentConfig => {
   // Read and parse the JSON file
   const configPath = path.resolve(filePath);
-  const configJson = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  const configJson = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
   // Validate the configuration
   return DeploymentConfigSchema.parse(configJson);

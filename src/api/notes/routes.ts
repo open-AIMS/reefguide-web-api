@@ -1,11 +1,11 @@
-import express from "express";
-import { z } from "zod";
-import { processRequest } from "zod-express-middleware";
-import { prisma } from "../apiSetup";
-import { passport } from "../auth/passportConfig";
-import { userIsAdmin } from "../auth/utils";
-import { NotFoundException, UnauthorizedException } from "../exceptions";
-require("express-async-errors");
+import express from 'express';
+import { z } from 'zod';
+import { processRequest } from 'zod-express-middleware';
+import { prisma } from '../apiSetup';
+import { passport } from '../auth/passportConfig';
+import { userIsAdmin } from '../auth/utils';
+import { NotFoundException, UnauthorizedException } from '../exceptions';
+require('express-async-errors');
 
 const notes = express.Router();
 
@@ -21,8 +21,8 @@ const updateNoteSchema = z.object({
 
 /** Get all notes for the user, or all notes if admin */
 notes.get(
-  "/",
-  passport.authenticate("jwt", { session: false }),
+  '/',
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -41,14 +41,14 @@ notes.get(
     }
 
     res.json({ notes });
-  }
+  },
 );
 
 /** Get all notes for a specific polygon*/
 notes.get(
-  "/:id",
+  '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -60,7 +60,7 @@ notes.get(
     });
 
     if (!polygon) {
-      throw new NotFoundException("Polygon not found");
+      throw new NotFoundException('Polygon not found');
     }
 
     if (!userIsAdmin(req.user) && polygon.user_id !== req.user.id) {
@@ -72,16 +72,16 @@ notes.get(
     });
 
     res.json({ notes });
-  }
+  },
 );
 
 /** Create a new note for the given polygon ID */
 notes.post(
-  "/",
+  '/',
   processRequest({
     body: createNoteSchema,
   }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -94,12 +94,12 @@ notes.post(
     });
 
     if (!polygon) {
-      throw new NotFoundException("Polygon not found");
+      throw new NotFoundException('Polygon not found');
     }
 
     if (!userIsAdmin(req.user) && polygon.user_id !== userId) {
       throw new UnauthorizedException(
-        "You do not have permission to add notes to this polygon"
+        'You do not have permission to add notes to this polygon',
       );
     }
 
@@ -114,17 +114,17 @@ notes.post(
     res.status(201).json({
       note: newNote,
     });
-  }
+  },
 );
 
 /** Update a note by note ID */
 notes.put(
-  "/:id",
+  '/:id',
   processRequest({
     body: updateNoteSchema,
     params: z.object({ id: z.string() }),
   }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -138,7 +138,7 @@ notes.put(
     });
 
     if (!existingNote) {
-      throw new NotFoundException("Note not found");
+      throw new NotFoundException('Note not found');
     }
 
     if (!userIsAdmin(req.user) && existingNote.user_id !== userId) {
@@ -153,14 +153,14 @@ notes.put(
     });
 
     res.json({ note: updatedPolygon });
-  }
+  },
 );
 
 /** Delete a note by note ID */
 notes.delete(
-  "/:id",
+  '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -172,7 +172,7 @@ notes.delete(
     });
 
     if (!existingNote) {
-      throw new NotFoundException("Note not found");
+      throw new NotFoundException('Note not found');
     }
 
     if (!userIsAdmin(req.user) && existingNote.user_id !== req.user.id) {
@@ -184,7 +184,7 @@ notes.delete(
     });
 
     res.status(204).send();
-  }
+  },
 );
 
 export default notes;

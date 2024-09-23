@@ -1,12 +1,12 @@
-import * as cdk from "aws-cdk-lib";
-import * as acm from "aws-cdk-lib/aws-certificatemanager";
-import * as route53 from "aws-cdk-lib/aws-route53";
-import { Construct } from "constructs";
-import { ReefGuideNetworking } from "./components/networking";
-import { ReefGuideAPI } from "./components/reefGuideAPI";
-import { WebAPI } from "./components/webAPI";
-import { DeploymentConfig } from "./infra_config";
-import { ReefGuideFrontend } from "./components/reefGuideFrontend";
+import * as cdk from 'aws-cdk-lib';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import { Construct } from 'constructs';
+import { ReefGuideNetworking } from './components/networking';
+import { ReefGuideAPI } from './components/reefGuideAPI';
+import { WebAPI } from './components/webAPI';
+import { DeploymentConfig } from './infra_config';
+import { ReefGuideFrontend } from './components/reefGuideFrontend';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -14,14 +14,14 @@ export interface ReefguideWebApiProps extends cdk.StackProps {
 
 // All of these endpoints need to be added to CSP for front-end
 const ARC_GIS_ENDPOINTS = [
-  "https://js.arcgis.com",
-  "https://www.arcgis.com",
-  "https://static.arcgis.com",
-  "https://basemaps.arcgis.com",
-  "https://cdn.arcgis.com",
-  "https://server.arcgisonline.com",
-  "https://services.arcgisonline.com",
-  "https://tiles.arcgis.com",
+  'https://js.arcgis.com',
+  'https://www.arcgis.com',
+  'https://static.arcgis.com',
+  'https://basemaps.arcgis.com',
+  'https://cdn.arcgis.com',
+  'https://server.arcgisonline.com',
+  'https://services.arcgisonline.com',
+  'https://tiles.arcgis.com',
 ];
 
 export class ReefguideWebApiStack extends cdk.Stack {
@@ -35,7 +35,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // =========
 
     // Setup the hosted zone for domain definitions
-    const hz = route53.HostedZone.fromHostedZoneAttributes(this, "hz", {
+    const hz = route53.HostedZone.fromHostedZoneAttributes(this, 'hz', {
       hostedZoneId: config.hostedZone.id,
       zoneName: config.hostedZone.name,
     });
@@ -53,22 +53,22 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // Primary certificate for the hosted zone
     const primaryCert = acm.Certificate.fromCertificateArn(
       this,
-      "primary-cert",
-      config.certificates.primary
+      'primary-cert',
+      config.certificates.primary,
     );
 
     // CloudFront certificate
     const cfnCert = acm.Certificate.fromCertificateArn(
       this,
-      "cfn-cert",
-      config.certificates.cloudfront
+      'cfn-cert',
+      config.certificates.cloudfront,
     );
 
     // NETWORKING
     // ==========
 
     // Setup networking infrastructure
-    const networking = new ReefGuideNetworking(this, "networking", {
+    const networking = new ReefGuideNetworking(this, 'networking', {
       certificate: primaryCert,
     });
 
@@ -76,7 +76,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // ===============
 
     // Deploy the reef guide API as a load balanced ECS service
-    const reefGuideApi = new ReefGuideAPI(this, "reef-guide-api", {
+    const reefGuideApi = new ReefGuideAPI(this, 'reef-guide-api', {
       vpc: networking.vpc,
       certificate: primaryCert,
       domainName: domains.reefGuideAPI,
@@ -86,7 +86,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
     });
 
     // Web API
-    const webAPI = new WebAPI(this, "web-api", {
+    const webAPI = new WebAPI(this, 'web-api', {
       certificate: primaryCert,
       config: config.webAPI,
       domainName: domains.webAPI,
@@ -96,14 +96,15 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // ========
     // FRONTEND
     // ========
-    const reefGuideFrontend = new ReefGuideFrontend(this, "frontend", {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const reefGuideFrontend = new ReefGuideFrontend(this, 'frontend', {
       usEastCertificate: cfnCert,
       config: config.frontend,
       domainName: domains.frontend,
       hz: hz,
       // This overrides CSP to allow the browser to use these endpoints
       cspEndpoints: [reefGuideApi.endpoint, webAPI.endpoint].concat(
-        ARC_GIS_ENDPOINTS
+        ARC_GIS_ENDPOINTS,
       ),
     });
   }

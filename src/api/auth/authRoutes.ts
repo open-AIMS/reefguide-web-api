@@ -1,26 +1,26 @@
-import bcryptjs from "bcryptjs";
-import express, { Request, Response } from "express";
-import { processRequest } from "zod-express-middleware";
+import bcryptjs from 'bcryptjs';
+import express, { Request, Response } from 'express';
+import { processRequest } from 'zod-express-middleware';
 import {
   LoginInputSchema,
   LoginResponse,
   ProfileResponse,
   RegisterInputSchema,
   RegisterResponse,
-} from "../../interfaces/Auth";
-import { prisma } from "../apiSetup";
-import * as Exceptions from "../exceptions";
-import { signJwt } from "./jwtConfig";
-import { passport } from "./passportConfig";
+} from '../../interfaces/Auth';
+import { prisma } from '../apiSetup';
+import * as Exceptions from '../exceptions';
+import { signJwt } from './jwtConfig';
+import { passport } from './passportConfig';
 
-require("express-async-errors");
+require('express-async-errors');
 const router = express.Router();
 
 /**
  * Register a new user
  */
 router.post(
-  "/register",
+  '/register',
   processRequest({ body: RegisterInputSchema }),
   async (req: Request, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
@@ -31,7 +31,7 @@ router.post(
     });
 
     if (existingUser) {
-      throw new Exceptions.BadRequestException("User already exists");
+      throw new Exceptions.BadRequestException('User already exists');
     }
 
     // Hash the password
@@ -48,14 +48,14 @@ router.post(
     });
 
     res.status(201).json({ userId: newUser.id });
-  }
+  },
 );
 
 /**
  * Login user
  */
 router.post(
-  "/login",
+  '/login',
   processRequest({ body: LoginInputSchema }),
   async (req: Request, res: Response<LoginResponse>) => {
     const { email, password: submittedPassword } = req.body;
@@ -73,17 +73,17 @@ router.post(
     });
 
     if (!user) {
-      throw new Exceptions.UnauthorizedException("Invalid credentials");
+      throw new Exceptions.UnauthorizedException('Invalid credentials');
     }
 
     // Check password
     const isPasswordValid = await bcryptjs.compare(
       submittedPassword,
-      user.password
+      user.password,
     );
 
     if (!isPasswordValid) {
-      throw new Exceptions.UnauthorizedException("Invalid credentials");
+      throw new Exceptions.UnauthorizedException('Invalid credentials');
     }
 
     // Generate JWT - include ID and email
@@ -95,24 +95,24 @@ router.post(
     });
 
     res.json({ token });
-  }
+  },
 );
 
 /**
  * Get user profile (protected route)
  */
 router.get(
-  "/profile",
-  passport.authenticate("jwt", { session: false }),
+  '/profile',
+  passport.authenticate('jwt', { session: false }),
   (req: Request, res: Response<ProfileResponse>) => {
     if (!req.user) {
       throw new Exceptions.InternalServerError(
-        "User object was not available after authorisation."
+        'User object was not available after authorisation.',
       );
     }
     // The user is attached to the request by Passport
     res.json({ user: req.user });
-  }
+  },
 );
 
 export default router;

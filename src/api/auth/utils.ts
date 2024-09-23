@@ -4,5 +4,5 @@
  * @returns True iff user is admin
  */
 export const userIsAdmin = (user: Express.User): boolean => {
-  return user.roles.includes("ADMIN");
+  return user.roles.includes('ADMIN');
 };

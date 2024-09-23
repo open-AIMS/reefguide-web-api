@@ -1,17 +1,17 @@
-import { CfnOutput, Duration, RemovalPolicy } from "aws-cdk-lib";
-import * as acm from "aws-cdk-lib/aws-certificatemanager";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as ecs from "aws-cdk-lib/aws-ecs";
-import * as efs from "aws-cdk-lib/aws-efs";
-import * as elb from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import * as iam from "aws-cdk-lib/aws-iam";
-import * as logs from "aws-cdk-lib/aws-logs";
-import * as r53 from "aws-cdk-lib/aws-route53";
-import * as r53Targets from "aws-cdk-lib/aws-route53-targets";
-import * as s3 from "aws-cdk-lib/aws-s3";
-import { Construct } from "constructs";
-import { ReefGuideAPIConfig } from "../infra_config";
-import { SharedBalancer } from "./networking";
+import { CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as r53 from 'aws-cdk-lib/aws-route53';
+import * as r53Targets from 'aws-cdk-lib/aws-route53-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { Construct } from 'constructs';
+import { ReefGuideAPIConfig } from '../infra_config';
+import { SharedBalancer } from './networking';
 
 /**
  * Properties for the ReefGuideAPI construct
@@ -37,12 +37,16 @@ export interface ReefGuideAPIProps {
 export class ReefGuideAPI extends Construct {
   /** Internal port for the reefGuide service */
   public readonly internalPort: number;
+
   /** External HTTPS port */
   public readonly externalPort: number = 443;
+
   /** Endpoint for reefGuide access (format: https://domain:port) */
   public readonly endpoint: string;
+
   /** The Fargate Service */
   public readonly fargateService: ecs.FargateService;
+
   /** A bucket used for intermediary data transfer */
   public readonly dataBucket: s3.Bucket;
 
@@ -64,7 +68,7 @@ export class ReefGuideAPI extends Construct {
     // ===================
 
     // Create S3 Bucket - setup to be transient
-    this.dataBucket = new s3.Bucket(this, "bucket", {
+    this.dataBucket = new s3.Bucket(this, 'bucket', {
       versioned: false,
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: RemovalPolicy.RETAIN,
@@ -72,7 +76,7 @@ export class ReefGuideAPI extends Construct {
     });
 
     // Create EFS File System
-    const fileSystem = new efs.FileSystem(this, "efs", {
+    const fileSystem = new efs.FileSystem(this, 'efs', {
       vpc: props.vpc,
       lifecyclePolicy: efs.LifecyclePolicy.AFTER_14_DAYS,
       performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
@@ -86,47 +90,47 @@ export class ReefGuideAPI extends Construct {
 
     // If you want to use a local build for debugging (not recommended for production, set this to false)
     const reefGuideContainerImage = ecs.ContainerImage.fromRegistry(
-      `${props.config.reefGuideDockerImage}:${props.config.reefGuideDockerImageTag}`
+      `${props.config.reefGuideDockerImage}:${props.config.reefGuideDockerImageTag}`,
     );
 
     // Create the Fargate task definition
     const reefGuideTaskDfn = new ecs.FargateTaskDefinition(
       this,
-      "reefguide-task-dfn",
+      'reefguide-task-dfn',
       {
         ephemeralStorageGiB: 21, // 20GB ephemeral storage (minimum)
         cpu: props.config.cpu,
         memoryLimitMiB: props.config.memory,
-      }
+      },
     );
 
     // Add EFS volume to the task definition
     reefGuideTaskDfn.addVolume({
-      name: "efs-volume",
+      name: 'efs-volume',
       efsVolumeConfiguration: {
         fileSystemId: fileSystem.fileSystemId,
         // The /data/reefguide path in EFS is targeted - must exist!
-        rootDirectory: "/data/reefguide",
+        rootDirectory: '/data/reefguide',
         // This means the TLS encryption applies in transit - requires IAM auth
-        transitEncryption: "ENABLED",
+        transitEncryption: 'ENABLED',
         // This adds the -o tls,iam flag which is needed for EFS to mount -
         // silliness just plain silliness! (Why is this not done
         // automatically??)
-        authorizationConfig: { iam: "ENABLED" },
+        authorizationConfig: { iam: 'ENABLED' },
       },
     });
 
     // Add container to the task definition
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const reefGuideContainerDfn = reefGuideTaskDfn.addContainer(
-      "reefguide-container-dfn",
+      'reefguide-container-dfn',
       {
         image: reefGuideContainerImage,
         portMappings: [
           {
             containerPort: this.internalPort,
             appProtocol: ecs.AppProtocol.http,
-            name: "reefguide-port",
+            name: 'reefguide-port',
           },
         ],
         environment: {
@@ -136,17 +140,17 @@ export class ReefGuideAPI extends Construct {
           // TODO configure any secrets
         },
         logging: ecs.LogDriver.awsLogs({
-          streamPrefix: "reefguideapi",
+          streamPrefix: 'reefguideapi',
           logRetention: logs.RetentionDays.ONE_MONTH,
         }),
-      }
+      },
     );
 
     // Mount EFS to the container
     reefGuideContainerDfn.addMountPoints({
-      sourceVolume: "efs-volume",
+      sourceVolume: 'efs-volume',
       // This is where to mount the EFS in the container
-      containerPath: "/data/reefguide",
+      containerPath: '/data/reefguide',
       readOnly: false,
     });
 
@@ -159,19 +163,19 @@ export class ReefGuideAPI extends Construct {
     // =========================
 
     // Create the ECS Cluster
-    const cluster = new ecs.Cluster(this, "reef-guide-cluster", {
+    const cluster = new ecs.Cluster(this, 'reef-guide-cluster', {
       vpc: props.vpc,
     });
 
     // Create Security Group for the Fargate service
-    const serviceSecurityGroup = new ec2.SecurityGroup(this, "reef-guide-sg", {
+    const serviceSecurityGroup = new ec2.SecurityGroup(this, 'reef-guide-sg', {
       vpc: props.vpc,
       allowAllOutbound: true,
-      description: "Security group for reef guide Fargate service",
+      description: 'Security group for reef guide Fargate service',
     });
 
     // Create Fargate Service
-    this.fargateService = new ecs.FargateService(this, "reefguide-service", {
+    this.fargateService = new ecs.FargateService(this, 'reefguide-service', {
       cluster: cluster,
       taskDefinition: reefGuideTaskDfn,
       // TODO Update if we need to
@@ -189,26 +193,26 @@ export class ReefGuideAPI extends Construct {
     // =========================
 
     // Create the target group
-    const tg = new elb.ApplicationTargetGroup(this, "reef-guide-tg", {
+    const tg = new elb.ApplicationTargetGroup(this, 'reef-guide-tg', {
       port: this.internalPort,
       protocol: elb.ApplicationProtocol.HTTP,
       targetType: elb.TargetType.IP,
       healthCheck: {
         enabled: true,
-        healthyHttpCodes: "200,201,302",
+        healthyHttpCodes: '200,201,302',
         protocol: elb.Protocol.HTTP,
         healthyThresholdCount: 2,
         unhealthyThresholdCount: 5,
         interval: Duration.seconds(10),
         timeout: Duration.seconds(5),
         port: this.internalPort.toString(),
-        path: "/",
+        path: '/',
       },
       vpc: props.vpc,
       // Add stickiness configuration - this means the LB will preferentially
       // route users back to the same instance
       stickinessCookieDuration: Duration.hours(1),
-      stickinessCookieName: "ReefGuideSessionId",
+      stickinessCookieName: 'ReefGuideSessionId',
     });
 
     // Add the Fargate service to target group
@@ -216,11 +220,11 @@ export class ReefGuideAPI extends Construct {
 
     // Add HTTP redirected HTTPS service to ALB against target group
     props.sharedBalancer.addHttpRedirectedConditionalHttpsTarget(
-      "reef-guide",
+      'reef-guide',
       tg,
       [elb.ListenerCondition.hostHeaders([props.domainName])],
       100, // TODO: Understand and consider priorities
-      100
+      100,
     );
 
     // AUTO SCALING SETUP
@@ -233,25 +237,25 @@ export class ReefGuideAPI extends Construct {
     });
 
     // Configure CPU utilization based auto scaling
-    scaling.scaleOnCpuUtilization("CpuScaling", {
+    scaling.scaleOnCpuUtilization('CpuScaling', {
       targetUtilizationPercent: props.config.autoScaling.targetCpuUtilization,
       scaleInCooldown: Duration.seconds(
-        props.config.autoScaling.scaleInCooldown
+        props.config.autoScaling.scaleInCooldown,
       ),
       scaleOutCooldown: Duration.seconds(
-        props.config.autoScaling.scaleOutCooldown
+        props.config.autoScaling.scaleOutCooldown,
       ),
     });
 
     // Configure memory utilization based auto scaling
-    scaling.scaleOnMemoryUtilization("MemoryScaling", {
+    scaling.scaleOnMemoryUtilization('MemoryScaling', {
       targetUtilizationPercent:
         props.config.autoScaling.targetMemoryUtilization,
       scaleInCooldown: Duration.seconds(
-        props.config.autoScaling.scaleInCooldown
+        props.config.autoScaling.scaleInCooldown,
       ),
       scaleOutCooldown: Duration.seconds(
-        props.config.autoScaling.scaleOutCooldown
+        props.config.autoScaling.scaleOutCooldown,
       ),
     });
 
@@ -259,13 +263,13 @@ export class ReefGuideAPI extends Construct {
     // ===========
 
     // Route from reefGuide domain to ALB
-    new r53.ARecord(this, "reef-guide-api-route", {
+    new r53.ARecord(this, 'reef-guide-api-route', {
       zone: props.hz,
       recordName: props.domainName,
       comment: `Route from ${props.domainName} to ReefGuideAPI.jl ECS service through ALB`,
       ttl: Duration.minutes(30),
       target: r53.RecordTarget.fromAlias(
-        new r53Targets.LoadBalancerTarget(props.sharedBalancer.alb)
+        new r53Targets.LoadBalancerTarget(props.sharedBalancer.alb),
       ),
     });
 
@@ -276,7 +280,7 @@ export class ReefGuideAPI extends Construct {
     serviceSecurityGroup.connections.allowFrom(
       props.sharedBalancer.alb,
       ec2.Port.tcp(this.internalPort),
-      "Allow traffic from ALB to ReefGuideAPI.jl Fargate Service"
+      'Allow traffic from ALB to ReefGuideAPI.jl Fargate Service',
     );
 
     // ========================
@@ -286,30 +290,30 @@ export class ReefGuideAPI extends Construct {
     // EC2 Instance for EFS management - be sure to shut down when not using
     const instanceType = ec2.InstanceType.of(
       ec2.InstanceClass.T3,
-      ec2.InstanceSize.MEDIUM
+      ec2.InstanceSize.MEDIUM,
     );
 
     // Use Ubuntu image as it is a bit easier for users
     const machineImage = ec2.MachineImage.lookup({
       // AMI: ami-0892a9c01908fafd1
-      name: "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240801",
+      name: 'ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-20240801',
     });
 
     // Role for EC2 to use
-    const efsManagementRole = new iam.Role(this, "EFSManagementRole", {
-      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
+    const efsManagementRole = new iam.Role(this, 'EFSManagementRole', {
+      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
     });
 
     // Allow SSM connection
     efsManagementRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore")
+      iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
     );
 
     // Allow EFS operations
     efsManagementRole.addManagedPolicy(
       iam.ManagedPolicy.fromAwsManagedPolicyName(
-        "AmazonElasticFileSystemClientReadWriteAccess"
-      )
+        'AmazonElasticFileSystemClientReadWriteAccess',
+      ),
     );
 
     // Allow EFS read write
@@ -321,28 +325,28 @@ export class ReefGuideAPI extends Construct {
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       // update etc
-      "sudo apt -y update",
+      'sudo apt -y update',
       // get deps
-      "sudo apt -y install unzip git binutils rustc cargo pkg-config libssl-dev",
+      'sudo apt -y install unzip git binutils rustc cargo pkg-config libssl-dev',
       // efs utils install
-      "git clone https://github.com/aws/efs-utils",
-      "cd efs-utils",
-      "./build-deb.sh",
-      "sudo apt -y install ./build/amazon-efs-utils*deb",
+      'git clone https://github.com/aws/efs-utils',
+      'cd efs-utils',
+      './build-deb.sh',
+      'sudo apt -y install ./build/amazon-efs-utils*deb',
 
       // setup reefguide mount in /efs of ubuntu user
-      `mkdir /home/ubuntu/efs`,
+      'mkdir /home/ubuntu/efs',
       `mount -t efs -o tls,iam ${fileSystem.fileSystemId} efs/`,
 
       // Install AWS CLI
       'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
-      "unzip awscliv2.zip",
-      "sudo ./aws/install"
+      'unzip awscliv2.zip',
+      'sudo ./aws/install',
     );
 
     const efsManagementInstance = new ec2.Instance(
       this,
-      "EFSManagementInstance",
+      'EFSManagementInstance',
       {
         vpc: props.vpc,
         instanceType: instanceType,
@@ -354,20 +358,20 @@ export class ReefGuideAPI extends Construct {
         associatePublicIpAddress: true,
         blockDevices: [
           {
-            deviceName: "/dev/xvda",
+            deviceName: '/dev/xvda',
             volume: ec2.BlockDeviceVolume.ebs(50),
           },
         ],
-      }
+      },
     );
 
     // Allow EC2 instance to access EFS
     fileSystem.connections.allowDefaultPortFrom(efsManagementInstance);
 
     // Output the URL of the API
-    new CfnOutput(this, "reef-guide-endpoint", {
+    new CfnOutput(this, 'reef-guide-endpoint', {
       value: this.endpoint,
-      description: "ReefGuideAPI.jl endpoint",
+      description: 'ReefGuideAPI.jl endpoint',
     });
   }
 }

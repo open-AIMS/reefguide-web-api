@@ -10,6 +10,7 @@ A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and
 - AWS CDK for infrastructure as code
 - Serverless deployment using AWS Lambda and API Gateway
 - Environment-based configuration with Zod validation
+- Basic docker compose
 
 ## Prerequisites
 
@@ -20,11 +21,13 @@ A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and
 ## Setup (local)
 
 1. Clone the repository
-2. Install dependencies: `npm install`
-3. Generate Prisma client: `npm run prisma-generate`
-4. Set up environment variables: Copy `.env.example` to `.env`
-5. Generate JWT keys: `npm run local-keys`
-6. Fill in missing values in `.env` - notably your postgres connection strings
+1. Install dependencies: `npm install`
+1. Generate Prisma client: `npm run prisma-generate`
+1. Set up environment variables: Copy `.env.example` to `.env`
+1. Generate JWT keys: `npm run local-keys`
+1. Start up psql `docker compose up`
+1. Run DB migration `npm run db-reset`
+1. Start server with auto-restart `npm run dev`
 
 ## Setup (AWS)
 

@@ -1,12 +1,12 @@
-import express from "express";
-import { z } from "zod";
-import { processRequest } from "zod-express-middleware";
-import { prisma } from "../apiSetup";
-import { passport } from "../auth/passportConfig";
-import { userIsAdmin } from "../auth/utils";
-import { NotFoundException, UnauthorizedException } from "../exceptions";
-import { GeoJSONPolygonSchema } from "../../interfaces/GeoJSON";
-require("express-async-errors");
+import express from 'express';
+import { z } from 'zod';
+import { processRequest } from 'zod-express-middleware';
+import { prisma } from '../apiSetup';
+import { passport } from '../auth/passportConfig';
+import { userIsAdmin } from '../auth/utils';
+import { NotFoundException, UnauthorizedException } from '../exceptions';
+import { GeoJSONPolygonSchema } from '../../interfaces/GeoJSON';
+require('express-async-errors');
 
 const polygons = express.Router();
 
@@ -21,9 +21,9 @@ const updatePolygonSchema = z.object({
 
 /** Get a specific polygon by ID */
 polygons.get(
-  "/:id",
+  '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -36,7 +36,7 @@ polygons.get(
     });
 
     if (!polygon) {
-      throw new NotFoundException("Polygon not found");
+      throw new NotFoundException('Polygon not found');
     }
 
     if (!userIsAdmin(req.user) && polygon.user_id !== req.user.id) {
@@ -44,13 +44,13 @@ polygons.get(
     }
 
     res.json({ polygon });
-  }
+  },
 );
 
 /** Get all polygons for user, or all if admin */
 polygons.get(
-  "/",
-  passport.authenticate("jwt", { session: false }),
+  '/',
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -66,16 +66,16 @@ polygons.get(
         where: { user_id: req.user.id },
       }),
     });
-  }
+  },
 );
 
 /** Create a new Polygon */
 polygons.post(
-  "/",
+  '/',
   processRequest({
     body: createPolygonSchema,
   }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -90,17 +90,17 @@ polygons.post(
     res.status(201).json({
       polygon: newPolygon,
     });
-  }
+  },
 );
 
 /** Update a Polygon */
 polygons.put(
-  "/:id",
+  '/:id',
   processRequest({
     params: z.object({ id: z.string() }),
     body: updatePolygonSchema,
   }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -113,7 +113,7 @@ polygons.put(
     });
 
     if (!existingPolygon) {
-      throw new NotFoundException("Polygon not found");
+      throw new NotFoundException('Polygon not found');
     }
 
     if (!userIsAdmin(req.user) && existingPolygon.user_id !== req.user.id) {
@@ -128,14 +128,14 @@ polygons.put(
     });
 
     res.json({ polygon: updatedPolygon });
-  }
+  },
 );
 
 /** Delete a Polygon */
 polygons.delete(
-  "/:id",
+  '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
-  passport.authenticate("jwt", { session: false }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) {
       throw new UnauthorizedException();
@@ -147,7 +147,7 @@ polygons.delete(
     });
 
     if (!existingPolygon) {
-      throw new NotFoundException("Polygon not found");
+      throw new NotFoundException('Polygon not found');
     }
 
     if (!userIsAdmin(req.user) && existingPolygon.user_id !== req.user.id) {
@@ -159,7 +159,7 @@ polygons.delete(
     });
 
     res.status(204).send();
-  }
+  },
 );
 
 export default polygons;
