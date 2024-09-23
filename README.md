@@ -1,4 +1,4 @@
-# MADAME REST API
+# ReefGuide Web API
 
 A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and Prisma, deployable to AWS using CDK.
 
@@ -30,7 +30,7 @@ A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and
 
 First, create a config json file in `configs` e.g. `dev.json`. The `sample.json` includes example values.
 
-Next, run `npm run aws-keys -- <secret name e.g. dev-madame-creds>` with appropriate AWS creds in the environment, this creates an AWS secret manager with a generated keypair for JWT signing.
+Next, run `npm run aws-keys -- <secret name e.g. dev-reefguide-creds>` with appropriate AWS creds in the environment, this creates an AWS secret manager with a generated keypair for JWT signing.
 
 Then open this secret and add `DATABASE_URL` and `DIRECT_URL` fields which correspond to prisma values for the postgresql DB provider.
 

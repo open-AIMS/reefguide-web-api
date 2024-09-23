@@ -37,20 +37,13 @@ export class ReefGuideFrontend extends Construct {
   constructor(scope: Construct, id: string, props: ReefGuideFrontendProps) {
     super(scope, id);
 
-    const website = new StaticWebsite(this, "faims-website", {
+    const website = new StaticWebsite(this, "website", {
       hostedZone: props.hz,
       domainNames: [props.domainName],
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       errorResponses: [
         {
           httpStatus: 404,
-          responseHttpStatus: 200,
-          ttl: cdk.Duration.seconds(300),
-          responsePagePath: "/index.html",
-        },
-        // 401 should go 200 to index.html so that react router can work!
-        {
-          httpStatus: 401,
           responseHttpStatus: 200,
           ttl: cdk.Duration.seconds(300),
           responsePagePath: "/index.html",

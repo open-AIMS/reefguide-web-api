@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/madame-rest-api.ts",
+  "app": "npx ts-node --prefer-ts-exts bin/reefguide-web-api.ts",
   "watch": {
     "include": [
       "**"

@@ -98,8 +98,8 @@ export class WebAPI extends Construct {
 
     // Create an API Gateway REST API
     const restApi = new apigateway.RestApi(this, "apigw", {
-      restApiName: "Madame REST API",
-      description: "This service serves the Madame REST API.",
+      restApiName: "Reefguide Web API",
+      description: "This service serves the Reefguide Web API.",
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,

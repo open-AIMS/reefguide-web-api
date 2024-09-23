@@ -8,7 +8,7 @@ import { WebAPI } from "./components/webAPI";
 import { DeploymentConfig } from "./infra_config";
 import { ReefGuideFrontend } from "./components/reefGuideFrontend";
 
-export interface MadameRestApiProps extends cdk.StackProps {
+export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
 }
 
@@ -24,8 +24,8 @@ const ARC_GIS_ENDPOINTS = [
   "https://tiles.arcgis.com",
 ];
 
-export class MadameRestApiStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props: MadameRestApiProps) {
+export class ReefguideWebApiStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: ReefguideWebApiProps) {
     super(scope, id, props);
 
     // Pull out main config
