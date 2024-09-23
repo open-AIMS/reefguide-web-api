@@ -1,0 +1,48 @@
+generator client {
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+    ADMIN
+}
+
+// User - linked to passport js
+model User {
+    id       Int           @id @default(autoincrement())
+    email    String        @unique
+    password String
+    // What roles does the user have?
+    roles    UserRole[]    @default([])
+    polygons Polygon[]
+    notes    PolygonNote[]
+}
+
+// User submitted polygon - has notes
+model Polygon {
+    id         Int           @id @default(autoincrement())
+    created_at DateTime      @default(now())
+    // Each polygon is linked to a user
+    user       User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    user_id    Int
+    // Using Json type for GeoJSON
+    polygon    Json
+    // Polygon has PolygonNote
+    notes      PolygonNote[]
+}
+
+model PolygonNote {
+    id         Int      @id @default(autoincrement())
+    created_at DateTime @default(now())
+    content    String
+    user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    user_id    Int
+    polygon    Polygon  @relation(fields: [polygon_id], references: [id], onDelete: Cascade)
+    polygon_id Int
+}
