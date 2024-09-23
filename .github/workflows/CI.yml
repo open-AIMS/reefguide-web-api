@@ -25,7 +25,7 @@ jobs:
       run: npm run prisma-generate
 
     - name: Run typecheck
-      run: npm run tsc
+      run: npm run typecheck
 
     - name: Run linter
       run: npm run lint
