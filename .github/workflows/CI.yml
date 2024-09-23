@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm i
+
+    - name: Start Docker services (PostgreSQL DB)
+      run: docker-compose up -d
+
+    - name: Copy environment file
+      run: cp .env.example .env
+
+    - name: Generate local keys
+      run: npm run local-keys
+
+    - name: Reset database
+      run: npm run db-reset
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Stop Docker services
+      run: docker-compose down
