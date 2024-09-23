@@ -141,3 +141,6 @@ out
 
 cdk.context.json
 scripts/flatten.sh
+
+# Ensure this file is included
+!src/api/types/express/*
