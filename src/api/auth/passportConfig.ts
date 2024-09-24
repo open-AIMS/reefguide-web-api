@@ -5,7 +5,7 @@ import {
   StrategyOptions,
 } from "passport-jwt";
 import { prisma } from "../apiSetup";
-import { ALGORITHM as KEY_ALGORITHM, PUBLIC_KEY } from "./jwtConfig";
+import { ALGORITHM as KEY_ALGORITHM, PUBLIC_KEY } from "./jwtUtils";
 
 /**
  * Options for configuring the JWT strategy

@@ -1,11 +1,11 @@
-import bcryptjs from 'bcryptjs';
-import { prisma } from '../src/api/apiSetup';
-import { signJwt } from '../src/api/auth/jwtConfig';
+import bcryptjs from "bcryptjs";
+import { prisma } from "../src/api/apiSetup";
+import { signJwt } from "../src/api/auth/jwtUtils";
 
-export const user1Email = 'user1@example.com';
-export const user2Email = 'user2@example.com';
-export const adminEmail = 'admin@example.com';
-export const password = 'password123';
+export const user1Email = "user1@example.com";
+export const user2Email = "user2@example.com";
+export const adminEmail = "admin@example.com";
+export const password = "password123";
 
 // tokens
 export let user1Token: string;
@@ -40,7 +40,7 @@ export const userSetup = async () => {
     data: {
       email: adminEmail,
       password: hashedPassword,
-      roles: ['ADMIN'],
+      roles: ["ADMIN"],
     },
   });
 
@@ -68,21 +68,21 @@ export const clearDbs = async () => {
   const dbUrl = process.env.DATABASE_URL;
   const directUrl = process.env.DIRECT_URL;
 
-  if (!dbUrl?.includes('localhost') || !directUrl?.includes('localhost')) {
+  if (!dbUrl?.includes("localhost") || !directUrl?.includes("localhost")) {
     throw new Error(
-      'Should not clear DB which is not on localhost...not comfortable proceeding with tests. Check env file.',
+      "Should not clear DB which is not on localhost...not comfortable proceeding with tests. Check env file."
     );
   }
   // Delete all data from db
   const tablenames = await prisma.$queryRaw<
-  Array<{ tablename: string }>
+    Array<{ tablename: string }>
   >`SELECT tablename FROM pg_tables WHERE schemaname='public'`;
 
   const tables = tablenames
     .map(({ tablename }) => tablename)
-    .filter((name) => name !== '_prisma_migrations')
+    .filter((name) => name !== "_prisma_migrations")
     .map((name) => `"public"."${name}"`)
-    .join(', ');
+    .join(", ");
 
   try {
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);

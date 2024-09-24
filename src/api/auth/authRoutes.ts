@@ -1,28 +1,35 @@
-import bcryptjs from 'bcryptjs';
-import express, { Request, Response } from 'express';
-import { processRequest } from 'zod-express-middleware';
+import bcryptjs from "bcryptjs";
+import express, { Response } from "express";
+import { processRequest } from "zod-express-middleware";
 import {
-  LoginInputSchema,
-  LoginResponse,
-  ProfileResponse,
-  RegisterInputSchema,
-  RegisterResponse,
-} from '../../interfaces/Auth';
-import { prisma } from '../apiSetup';
-import * as Exceptions from '../exceptions';
-import { signJwt } from './jwtConfig';
-import { passport } from './passportConfig';
+    LoginInputSchema,
+    LoginResponse,
+    ProfileResponse,
+    RegisterInputSchema,
+    RegisterResponse,
+    TokenInputSchema,
+    TokenResponse
+} from "../../interfaces/Auth";
+import { prisma } from "../apiSetup";
+import * as Exceptions from "../exceptions";
+import { generateRefreshToken, signJwt } from "./jwtUtils";
+import { passport } from "./passportConfig";
+import {
+    decodeRefreshToken,
+    getRefreshTokenObject,
+    isRefreshTokenValid as validateRefreshToken,
+} from "./utils";
 
-require('express-async-errors');
+require("express-async-errors");
 const router = express.Router();
 
 /**
  * Register a new user
  */
 router.post(
-  '/register',
+  "/register",
   processRequest({ body: RegisterInputSchema }),
-  async (req: Request, res: Response<RegisterResponse>) => {
+  async (req, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
 
     // Check if user already exists
@@ -31,7 +38,7 @@ router.post(
     });
 
     if (existingUser) {
-      throw new Exceptions.BadRequestException('User already exists');
+      throw new Exceptions.BadRequestException("User already exists");
     }
 
     // Hash the password
@@ -48,16 +55,16 @@ router.post(
     });
 
     res.status(201).json({ userId: newUser.id });
-  },
+  }
 );
 
 /**
  * Login user
  */
 router.post(
-  '/login',
+  "/login",
   processRequest({ body: LoginInputSchema }),
-  async (req: Request, res: Response<LoginResponse>) => {
+  async (req, res: Response<LoginResponse>) => {
     const { email, password: submittedPassword } = req.body;
 
     // Find user by email
@@ -73,17 +80,17 @@ router.post(
     });
 
     if (!user) {
-      throw new Exceptions.UnauthorizedException('Invalid credentials');
+      throw new Exceptions.UnauthorizedException("Invalid credentials");
     }
 
     // Check password
     const isPasswordValid = await bcryptjs.compare(
       submittedPassword,
-      user.password,
+      user.password
     );
 
     if (!isPasswordValid) {
-      throw new Exceptions.UnauthorizedException('Invalid credentials');
+      throw new Exceptions.UnauthorizedException("Invalid credentials");
     }
 
     // Generate JWT - include ID and email
@@ -94,25 +101,60 @@ router.post(
       roles: user.roles,
     });
 
-    res.json({ token });
-  },
+    // Generate a refresh token
+    const refreshToken = await generateRefreshToken(user.id);
+
+    // Return token and refresh token
+    res.json({ token, refreshToken });
+  }
+);
+
+/**
+ * Get a new token using refresh token
+ */
+router.post(
+  "/token",
+  processRequest({ body: TokenInputSchema }),
+  async (req, res: Response<TokenResponse>) => {
+    // Pull out body contents
+    const { refreshToken } = req.body;
+
+    // Try to decode the token
+    const decodedToken = decodeRefreshToken(refreshToken);
+
+    // The decoded token contains both an ID and a token - check for both
+    const tokenDbObject = await getRefreshTokenObject(decodedToken);
+
+    // We have a valid, matching refresh token - now check it's valid
+    validateRefreshToken(tokenDbObject);
+
+    // Everything is okay - issue a new JWT
+    const jwt = signJwt({
+      id: tokenDbObject.user.id,
+      email: tokenDbObject.user.email,
+      roles: tokenDbObject.user.roles,
+    });
+
+    // Return token and refresh token
+    res.json({ token: jwt });
+  }
 );
 
 /**
  * Get user profile (protected route)
  */
 router.get(
-  '/profile',
-  passport.authenticate('jwt', { session: false }),
-  (req: Request, res: Response<ProfileResponse>) => {
+  "/profile",
+  passport.authenticate("jwt", { session: false }),
+  (req, res: Response<ProfileResponse>) => {
     if (!req.user) {
       throw new Exceptions.InternalServerError(
-        'User object was not available after authorisation.',
+        "User object was not available after authorisation."
       );
     }
     // The user is attached to the request by Passport
     res.json({ user: req.user });
-  },
+  }
 );
 
 export default router;
