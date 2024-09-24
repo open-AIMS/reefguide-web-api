@@ -1,14 +1,14 @@
-import { RefreshToken } from "@prisma/client";
-import { z } from "zod";
+import { RefreshToken } from '@prisma/client';
+import { z } from 'zod';
 import {
-    RefreshTokenContents,
-    RefreshTokenContentsSchema,
-} from "../../interfaces/Auth";
-import { prisma } from "../apiSetup";
+  RefreshTokenContents,
+  RefreshTokenContentsSchema,
+} from '../../interfaces/Auth';
+import { prisma } from '../apiSetup';
 import {
-    ExpiredRefreshTokenException,
-    InvalidRefreshTokenException,
-} from "../exceptions";
+  ExpiredRefreshTokenException,
+  InvalidRefreshTokenException,
+} from '../exceptions';
 
 /**
  * is the user an admin?
@@ -16,7 +16,7 @@ import {
  * @returns True iff user is admin
  */
 export const userIsAdmin = (user: Express.User): boolean => {
-  return user.roles.includes("ADMIN");
+  return user.roles.includes('ADMIN');
 };
 
 /**
@@ -25,7 +25,7 @@ export const userIsAdmin = (user: Express.User): boolean => {
  * @returns Base64 encoding
  */
 export const base64encode = (key: string): string => {
-  return Buffer.from(key).toString("base64");
+  return Buffer.from(key).toString('base64');
 };
 
 /**
@@ -34,7 +34,7 @@ export const base64encode = (key: string): string => {
  * @returns Decoded string
  */
 const base64Decode = (input: string): string => {
-  return Buffer.from(input, "base64").toString("utf-8");
+  return Buffer.from(input, 'base64').toString('utf-8');
 };
 
 /**
@@ -66,11 +66,11 @@ export const decodeRefreshToken = (input: string): RefreshTokenContents => {
     return validatedObject;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new InvalidRefreshTokenException("Invalid refresh token format");
+      throw new InvalidRefreshTokenException('Invalid refresh token format');
     } else if (error instanceof SyntaxError) {
-      throw new InvalidRefreshTokenException("Invalid JSON in refresh token");
+      throw new InvalidRefreshTokenException('Invalid JSON in refresh token');
     } else {
-      throw new InvalidRefreshTokenException("Failed to decode refresh token");
+      throw new InvalidRefreshTokenException('Failed to decode refresh token');
     }
   }
 };

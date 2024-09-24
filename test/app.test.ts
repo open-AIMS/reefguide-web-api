@@ -1,5 +1,9 @@
-import request from "supertest";
-import app, { prisma } from "../src/api/apiSetup";
+import { Express } from 'express';
+import request from 'supertest';
+import app, { prisma } from '../src/api/apiSetup';
+import { signJwt } from '../src/api/auth/jwtUtils';
+import { decodeRefreshToken, encodeRefreshToken } from '../src/api/auth/utils';
+import { InvalidRefreshTokenException } from '../src/api/exceptions';
 import {
   adminToken,
   clearDbs,
@@ -7,60 +11,52 @@ import {
   user1Token,
   user2Token,
   userSetup,
-} from "./utils";
-import { Express } from "express";
-import {
-  base64encode,
-  decodeRefreshToken,
-  encodeRefreshToken,
-} from "../src/api/auth/utils";
-import { signJwt } from "../src/api/auth/jwtUtils";
-import { InvalidRefreshTokenException } from "../src/api/exceptions";
+} from './utils';
 
 afterAll(async () => {
   // clear when finished
   await clearDbs();
 });
 
-type TokenType = "user1" | "user2" | "admin";
+type TokenType = 'user1' | 'user2' | 'admin';
 
 // Utility function to make authenticated requests
-const authRequest = (app: Express, tokenType: TokenType = "user1") => {
+const authRequest = (app: Express, tokenType: TokenType = 'user1') => {
   const token =
-    tokenType === "user2"
+    tokenType === 'user2'
       ? user2Token
-      : tokenType === "admin"
-      ? adminToken
-      : user1Token;
+      : tokenType === 'admin'
+        ? adminToken
+        : user1Token;
 
   return {
     get: (url: string) =>
       request(app)
         .get(url)
-        .set("Authorization", `Bearer ${token}`)
-        .set("Content-Type", "application/json"),
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json'),
 
     post: (url: string) =>
       request(app)
         .post(url)
-        .set("Authorization", `Bearer ${token}`)
-        .set("Content-Type", "application/json"),
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json'),
 
     put: (url: string) =>
       request(app)
         .put(url)
-        .set("Authorization", `Bearer ${token}`)
-        .set("Content-Type", "application/json"),
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json'),
 
     delete: (url: string) =>
       request(app)
         .delete(url)
-        .set("Authorization", `Bearer ${token}`)
-        .set("Content-Type", "application/json"),
+        .set('Authorization', `Bearer ${token}`)
+        .set('Content-Type', 'application/json'),
   };
 };
 
-describe("API", () => {
+describe('API', () => {
   let user1Id: number;
   let polygonId: number;
   let noteId: number;
@@ -78,7 +74,7 @@ describe("API", () => {
     // Create a polygon for user1
     const polygon = await prisma.polygon.create({
       data: {
-        polygon: JSON.stringify({ type: "Polygon", coordinates: [[]] }),
+        polygon: JSON.stringify({ type: 'Polygon', coordinates: [[]] }),
         user_id: user1Id,
       },
     });
@@ -87,7 +83,7 @@ describe("API", () => {
     // Create a note for the polygon
     const note = await prisma.polygonNote.create({
       data: {
-        content: "Test note",
+        content: 'Test note',
         polygon_id: polygonId,
         user_id: user1Id,
       },
@@ -99,70 +95,70 @@ describe("API", () => {
     await clearDbs();
   });
 
-  describe("Routes", () => {
-    describe("Health Check", () => {
-      it("should return 200 for unauthenticated request", async () => {
-        await request(app).get("/api").expect(200);
+  describe('Routes', () => {
+    describe('Health Check', () => {
+      it('should return 200 for unauthenticated request', async () => {
+        await request(app).get('/api').expect(200);
       });
 
-      it("should return 200 for authenticated request", async () => {
-        await authRequest(app, "user1").get("/api").expect(200);
+      it('should return 200 for authenticated request', async () => {
+        await authRequest(app, 'user1').get('/api').expect(200);
       });
     });
 
-    describe("Authentication", () => {
-      describe("POST /api/auth/register", () => {
-        it("should register a new user", async () => {
+    describe('Authentication', () => {
+      describe('POST /api/auth/register', () => {
+        it('should register a new user', async () => {
           const res = await request(app)
-            .post("/api/auth/register")
-            .send({ email: "newuser@example.com", password: "password123" })
+            .post('/api/auth/register')
+            .send({ email: 'newuser@example.com', password: 'password123' })
             .expect(201);
 
-          expect(res.body).toHaveProperty("userId");
+          expect(res.body).toHaveProperty('userId');
         });
 
-        it("should return 400 for invalid input", async () => {
+        it('should return 400 for invalid input', async () => {
           await request(app)
-            .post("/api/auth/register")
-            .send({ email: "invalidemail", password: "short" })
+            .post('/api/auth/register')
+            .send({ email: 'invalidemail', password: 'short' })
             .expect(400);
         });
 
-        it("should return 400 for existing email", async () => {
+        it('should return 400 for existing email', async () => {
           await request(app)
-            .post("/api/auth/register")
-            .send({ email: user1Email, password: "password123" })
+            .post('/api/auth/register')
+            .send({ email: user1Email, password: 'password123' })
             .expect(400);
         });
       });
 
-      describe("POST /api/auth/login", () => {
-        it("should login an existing user", async () => {
+      describe('POST /api/auth/login', () => {
+        it('should login an existing user', async () => {
           const res = await request(app)
-            .post("/api/auth/login")
-            .send({ email: user1Email, password: "password123" })
+            .post('/api/auth/login')
+            .send({ email: user1Email, password: 'password123' })
             .expect(200);
-          expect(res.body).toHaveProperty("token");
-          expect(res.body).toHaveProperty("refreshToken");
+          expect(res.body).toHaveProperty('token');
+          expect(res.body).toHaveProperty('refreshToken');
         });
 
-        it("should return 401 for invalid credentials", async () => {
+        it('should return 401 for invalid credentials', async () => {
           await request(app)
-            .post("/api/auth/login")
-            .send({ email: user1Email, password: "wrongpassword" })
+            .post('/api/auth/login')
+            .send({ email: user1Email, password: 'wrongpassword' })
             .expect(401);
         });
 
-        it("should return 401 for non-existent user", async () => {
+        it('should return 401 for non-existent user', async () => {
           await request(app)
-            .post("/api/auth/login")
-            .send({ email: "nonexistent@example.com", password: "password123" })
+            .post('/api/auth/login')
+            .send({ email: 'nonexistent@example.com', password: 'password123' })
             .expect(401);
         });
       });
 
-      describe("POST /api/auth/token", () => {
-        it("should issue a new token with a valid refresh token", async () => {
+      describe('POST /api/auth/token', () => {
+        it('should issue a new token with a valid refresh token', async () => {
           // Create a valid refresh token for testing
           const user = await prisma.user.findUniqueOrThrow({
             where: { email: user1Email },
@@ -171,7 +167,7 @@ describe("API", () => {
           const refreshTokenRecord = await prisma.refreshToken.create({
             data: {
               user_id: user.id,
-              token: "valid-refresh-token",
+              token: 'valid-refresh-token',
               expiry_time: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
               valid: true,
             },
@@ -183,29 +179,29 @@ describe("API", () => {
           });
 
           let res = await request(app)
-            .post("/api/auth/token")
+            .post('/api/auth/token')
             .send({ refreshToken: validRefreshToken })
             .expect(200);
-          expect(res.body).toHaveProperty("token");
+          expect(res.body).toHaveProperty('token');
 
           // Check the new token works
           const newToken = res.body.token as string;
           res = await request(app)
-            .get("/api/auth/profile")
-            .set("Authorization", `Bearer ${newToken}`)
+            .get('/api/auth/profile')
+            .set('Authorization', `Bearer ${newToken}`)
             .expect(200);
 
-          expect(res.body.user).toHaveProperty("email", user1Email);
+          expect(res.body.user).toHaveProperty('email', user1Email);
         });
 
-        it("should return 401 for an invalid refresh token", async () => {
+        it('should return 401 for an invalid refresh token', async () => {
           await request(app)
-            .post("/api/auth/token")
-            .send({ refreshToken: "invalid-refresh-token" })
+            .post('/api/auth/token')
+            .send({ refreshToken: 'invalid-refresh-token' })
             .expect(401);
         });
 
-        it("should return 401 for an expired refresh token", async () => {
+        it('should return 401 for an expired refresh token', async () => {
           const user = await prisma.user.findUnique({
             where: { email: user1Email },
           });
@@ -213,7 +209,7 @@ describe("API", () => {
             const expiredToken = await prisma.refreshToken.create({
               data: {
                 user_id: user.id,
-                token: "expired-token",
+                token: 'expired-token',
                 expiry_time: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
                 valid: true,
               },
@@ -224,67 +220,67 @@ describe("API", () => {
             });
 
             await request(app)
-              .post("/api/auth/token")
+              .post('/api/auth/token')
               .send({ refreshToken: expiredRefreshToken })
               .expect(401);
           }
         });
       });
 
-      describe("GET /api/auth/profile", () => {
-        it("should return user profile for authenticated user", async () => {
-          const res = await authRequest(app, "user1")
-            .get("/api/auth/profile")
+      describe('GET /api/auth/profile', () => {
+        it('should return user profile for authenticated user', async () => {
+          const res = await authRequest(app, 'user1')
+            .get('/api/auth/profile')
             .expect(200);
 
-          expect(res.body.user).toHaveProperty("email", user1Email);
+          expect(res.body.user).toHaveProperty('email', user1Email);
         });
 
-        it("should return 401 for unauthenticated request", async () => {
-          await request(app).get("/api/auth/profile").expect(401);
+        it('should return 401 for unauthenticated request', async () => {
+          await request(app).get('/api/auth/profile').expect(401);
         });
 
-        it("should return 401 for expired token", async () => {
+        it('should return 401 for expired token', async () => {
           const user = await prisma.user.findUnique({
             where: { email: user1Email },
           });
           if (user) {
             const expiredToken = signJwt(
               { id: user.id, email: user.email, roles: user.roles },
-              { expiresIn: "-1h" } // Expired 1 hour ago
+              { expiresIn: '-1h' }, // Expired 1 hour ago
             );
             await request(app)
-              .get("/api/auth/profile")
-              .set("Authorization", `Bearer ${expiredToken}`)
+              .get('/api/auth/profile')
+              .set('Authorization', `Bearer ${expiredToken}`)
               .expect(401);
           }
         });
       });
     });
 
-    describe("Refresh Token Utilities", () => {
-      it("should correctly encode and decode refresh tokens", () => {
-        const originalToken = { id: 1, token: "test-token" };
+    describe('Refresh Token Utilities', () => {
+      it('should correctly encode and decode refresh tokens', () => {
+        const originalToken = { id: 1, token: 'test-token' };
         const encodedToken = Buffer.from(
-          JSON.stringify(originalToken)
-        ).toString("base64");
+          JSON.stringify(originalToken),
+        ).toString('base64');
         const decodedToken = decodeRefreshToken(encodedToken);
         expect(decodedToken).toEqual(originalToken);
       });
 
-      it("should throw an error for invalid refresh token format", () => {
-        const invalidToken = "invalid-token-format";
+      it('should throw an error for invalid refresh token format', () => {
+        const invalidToken = 'invalid-token-format';
         expect(() => decodeRefreshToken(invalidToken)).toThrow(
-          InvalidRefreshTokenException
+          InvalidRefreshTokenException,
         );
       });
     });
 
-    describe("Polygons", () => {
-      describe("GET /api/polygons", () => {
-        it("should return all polygons for admin", async () => {
-          const res = await authRequest(app, "admin")
-            .get("/api/polygons")
+    describe('Polygons', () => {
+      describe('GET /api/polygons', () => {
+        it('should return all polygons for admin', async () => {
+          const res = await authRequest(app, 'admin')
+            .get('/api/polygons')
             .expect(200);
 
           expect(res.body.polygons).toBeInstanceOf(Array);
@@ -292,17 +288,17 @@ describe("API", () => {
         });
 
         it("should return only user's polygons for non-admin", async () => {
-          const res = await authRequest(app, "user1")
-            .get("/api/polygons")
+          const res = await authRequest(app, 'user1')
+            .get('/api/polygons')
             .expect(200);
 
           expect(res.body.polygons).toBeInstanceOf(Array);
           expect(res.body.polygons.length).toBe(1);
         });
 
-        it("should return empty array if user has no polygons", async () => {
-          const res = await authRequest(app, "user2")
-            .get("/api/polygons")
+        it('should return empty array if user has no polygons', async () => {
+          const res = await authRequest(app, 'user2')
+            .get('/api/polygons')
             .expect(200);
 
           expect(res.body.polygons).toBeInstanceOf(Array);
@@ -310,41 +306,41 @@ describe("API", () => {
         });
       });
 
-      describe("GET /api/polygons/:id", () => {
-        it("should return a specific polygon for its owner", async () => {
-          const res = await authRequest(app, "user1")
+      describe('GET /api/polygons/:id', () => {
+        it('should return a specific polygon for its owner', async () => {
+          const res = await authRequest(app, 'user1')
             .get(`/api/polygons/${polygonId}`)
             .expect(200);
 
-          expect(res.body.polygon).toHaveProperty("id", polygonId);
+          expect(res.body.polygon).toHaveProperty('id', polygonId);
         });
 
-        it("should return a specific polygon for admin", async () => {
-          const res = await authRequest(app, "admin")
+        it('should return a specific polygon for admin', async () => {
+          const res = await authRequest(app, 'admin')
             .get(`/api/polygons/${polygonId}`)
             .expect(200);
 
-          expect(res.body.polygon).toHaveProperty("id", polygonId);
+          expect(res.body.polygon).toHaveProperty('id', polygonId);
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .get(`/api/polygons/${polygonId}`)
             .expect(401);
         });
 
-        it("should return 404 for non-existent polygon", async () => {
-          await authRequest(app, "user1").get("/api/polygons/9999").expect(404);
+        it('should return 404 for non-existent polygon', async () => {
+          await authRequest(app, 'user1').get('/api/polygons/9999').expect(404);
         });
       });
 
-      describe("POST /api/polygons", () => {
-        it("should create a new polygon", async () => {
-          const res = await authRequest(app, "user1")
-            .post("/api/polygons")
+      describe('POST /api/polygons', () => {
+        it('should create a new polygon', async () => {
+          const res = await authRequest(app, 'user1')
+            .post('/api/polygons')
             .send({
               polygon: {
-                type: "Polygon",
+                type: 'Polygon',
                 coordinates: [
                   [
                     [0, 0],
@@ -358,25 +354,25 @@ describe("API", () => {
             })
             .expect(201);
 
-          expect(res.body.polygon).toHaveProperty("id");
-          expect(res.body.polygon).toHaveProperty("polygon");
+          expect(res.body.polygon).toHaveProperty('id');
+          expect(res.body.polygon).toHaveProperty('polygon');
         });
 
-        it("should return 400 for invalid GeoJSON", async () => {
-          await authRequest(app, "user1")
-            .post("/api/polygons")
-            .send({ polygon: "invalid" })
+        it('should return 400 for invalid GeoJSON', async () => {
+          await authRequest(app, 'user1')
+            .post('/api/polygons')
+            .send({ polygon: 'invalid' })
             .expect(400);
         });
       });
 
-      describe("PUT /api/polygons/:id", () => {
-        it("should update an existing polygon", async () => {
-          const res = await authRequest(app, "user1")
+      describe('PUT /api/polygons/:id', () => {
+        it('should update an existing polygon', async () => {
+          const res = await authRequest(app, 'user1')
             .put(`/api/polygons/${polygonId}`)
             .send({
               polygon: {
-                type: "Polygon",
+                type: 'Polygon',
                 coordinates: [
                   [
                     [0, 0],
@@ -390,20 +386,20 @@ describe("API", () => {
             })
             .expect(200);
 
-          expect(res.body.polygon).toHaveProperty("id", polygonId);
+          expect(res.body.polygon).toHaveProperty('id', polygonId);
           expect(
             res.body.polygon.polygon.coordinates[0].map((a: Array<number>) =>
-              a.toString()
-            )
+              a.toString(),
+            ),
           ).toContain([2, 2].toString());
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .put(`/api/polygons/${polygonId}`)
             .send({
               polygon: {
-                type: "Polygon",
+                type: 'Polygon',
                 coordinates: [
                   [
                     [0, 0],
@@ -418,12 +414,12 @@ describe("API", () => {
             .expect(401);
         });
 
-        it("should return 404 for non-existent polygon", async () => {
-          await authRequest(app, "user1")
-            .put("/api/polygons/9999")
+        it('should return 404 for non-existent polygon', async () => {
+          await authRequest(app, 'user1')
+            .put('/api/polygons/9999')
             .send({
               polygon: {
-                type: "Polygon",
+                type: 'Polygon',
                 coordinates: [
                   [
                     [0, 0],
@@ -439,37 +435,37 @@ describe("API", () => {
         });
       });
 
-      describe("DELETE /api/polygons/:id", () => {
-        it("should delete an existing polygon", async () => {
-          await authRequest(app, "user1")
+      describe('DELETE /api/polygons/:id', () => {
+        it('should delete an existing polygon', async () => {
+          await authRequest(app, 'user1')
             .delete(`/api/polygons/${polygonId}`)
             .expect(204);
 
           // Verify the polygon is deleted
-          await authRequest(app, "user1")
+          await authRequest(app, 'user1')
             .get(`/api/polygons/${polygonId}`)
             .expect(404);
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .delete(`/api/polygons/${polygonId}`)
             .expect(401);
         });
 
-        it("should return 404 for non-existent polygon", async () => {
-          await authRequest(app, "user1")
-            .delete("/api/polygons/9999")
+        it('should return 404 for non-existent polygon', async () => {
+          await authRequest(app, 'user1')
+            .delete('/api/polygons/9999')
             .expect(404);
         });
       });
     });
 
-    describe("Notes", () => {
-      describe("GET /api/notes", () => {
-        it("should return all notes for admin", async () => {
-          const res = await authRequest(app, "admin")
-            .get("/api/notes")
+    describe('Notes', () => {
+      describe('GET /api/notes', () => {
+        it('should return all notes for admin', async () => {
+          const res = await authRequest(app, 'admin')
+            .get('/api/notes')
             .expect(200);
 
           expect(res.body.notes).toBeInstanceOf(Array);
@@ -477,17 +473,17 @@ describe("API", () => {
         });
 
         it("should return only user's notes for non-admin", async () => {
-          const res = await authRequest(app, "user1")
-            .get("/api/notes")
+          const res = await authRequest(app, 'user1')
+            .get('/api/notes')
             .expect(200);
 
           expect(res.body.notes).toBeInstanceOf(Array);
           expect(res.body.notes.length).toBe(1);
         });
 
-        it("should return empty array if user has no notes", async () => {
-          const res = await authRequest(app, "user2")
-            .get("/api/notes")
+        it('should return empty array if user has no notes', async () => {
+          const res = await authRequest(app, 'user2')
+            .get('/api/notes')
             .expect(200);
 
           expect(res.body.notes).toBeInstanceOf(Array);
@@ -495,19 +491,19 @@ describe("API", () => {
         });
       });
 
-      describe("GET /api/notes/:id", () => {
-        it("should return notes for a specific polygon (owner)", async () => {
-          const res = await authRequest(app, "user1")
+      describe('GET /api/notes/:id', () => {
+        it('should return notes for a specific polygon (owner)', async () => {
+          const res = await authRequest(app, 'user1')
             .get(`/api/notes/${polygonId}`)
             .expect(200);
 
           expect(res.body.notes).toBeInstanceOf(Array);
           expect(res.body.notes.length).toBe(1);
-          expect(res.body.notes[0]).toHaveProperty("content", "Test note");
+          expect(res.body.notes[0]).toHaveProperty('content', 'Test note');
         });
 
-        it("should return notes for a specific polygon (admin)", async () => {
-          const res = await authRequest(app, "admin")
+        it('should return notes for a specific polygon (admin)', async () => {
+          const res = await authRequest(app, 'admin')
             .get(`/api/notes/${polygonId}`)
             .expect(200);
 
@@ -515,78 +511,78 @@ describe("API", () => {
           expect(res.body.notes.length).toBe(1);
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .get(`/api/notes/${polygonId}`)
             .expect(401);
         });
 
-        it("should return 404 for non-existent polygon", async () => {
-          await authRequest(app, "user1").get("/api/notes/9999").expect(404);
+        it('should return 404 for non-existent polygon', async () => {
+          await authRequest(app, 'user1').get('/api/notes/9999').expect(404);
         });
       });
 
-      describe("POST /api/notes", () => {
-        it("should create a new note", async () => {
-          const res = await authRequest(app, "user1")
-            .post("/api/notes")
+      describe('POST /api/notes', () => {
+        it('should create a new note', async () => {
+          const res = await authRequest(app, 'user1')
+            .post('/api/notes')
             .send({
-              content: "New test note",
+              content: 'New test note',
               polygonId: polygonId,
             })
             .expect(201);
 
-          expect(res.body.note).toHaveProperty("id");
-          expect(res.body.note).toHaveProperty("content", "New test note");
+          expect(res.body.note).toHaveProperty('id');
+          expect(res.body.note).toHaveProperty('content', 'New test note');
         });
 
-        it("should return 400 for invalid input", async () => {
-          await authRequest(app, "user1")
-            .post("/api/notes")
+        it('should return 400 for invalid input', async () => {
+          await authRequest(app, 'user1')
+            .post('/api/notes')
             .send({ polygonId: polygonId })
             .expect(400);
         });
 
         it("should return 401 if user doesn't own the polygon", async () => {
-          await authRequest(app, "user2")
-            .post("/api/notes")
+          await authRequest(app, 'user2')
+            .post('/api/notes')
             .send({
-              content: "Unauthorized note",
+              content: 'Unauthorized note',
               polygonId: polygonId,
             })
             .expect(401);
         });
       });
 
-      describe("PUT /api/notes/:id", () => {
-        it("should update an existing note", async () => {
-          const res = await authRequest(app, "user1")
+      describe('PUT /api/notes/:id', () => {
+        it('should update an existing note', async () => {
+          const res = await authRequest(app, 'user1')
             .put(`/api/notes/${noteId}`)
-            .send({ content: "Updated test note" })
+            .send({ content: 'Updated test note' })
             .expect(200);
 
-          expect(res.body.note).toHaveProperty("id", noteId);
-          expect(res.body.note).toHaveProperty("content", "Updated test note");
+          expect(res.body.note).toHaveProperty('id', noteId);
+          expect(res.body.note).toHaveProperty('content', 'Updated test note');
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .put(`/api/notes/${noteId}`)
-            .send({ content: "Unauthorized update" })
+            .send({ content: 'Unauthorized update' })
             .expect(401);
         });
 
-        it("should return 404 for non-existent note", async () => {
-          await authRequest(app, "user1")
-            .put("/api/notes/9999")
-            .send({ content: "Non-existent note" })
+        it('should return 404 for non-existent note', async () => {
+          await authRequest(app, 'user1')
+            .put('/api/notes/9999')
+            .send({ content: 'Non-existent note' })
             .expect(404);
         });
       });
 
-      describe("DELETE /api/notes/:id", () => {
-        it("should delete an existing note", async () => {
-          await authRequest(app, "user1")
+      describe('DELETE /api/notes/:id', () => {
+        it('should delete an existing note', async () => {
+          await authRequest(app, 'user1')
             .delete(`/api/notes/${noteId}`)
             .expect(204);
 
@@ -597,14 +593,14 @@ describe("API", () => {
           expect(notes.length).toBe(0);
         });
 
-        it("should return 401 if user is not the owner", async () => {
-          await authRequest(app, "user2")
+        it('should return 401 if user is not the owner', async () => {
+          await authRequest(app, 'user2')
             .delete(`/api/notes/${noteId}`)
             .expect(401);
         });
 
-        it("should return 404 for non-existent note", async () => {
-          await authRequest(app, "user1").delete("/api/notes/9999").expect(404);
+        it('should return 404 for non-existent note', async () => {
+          await authRequest(app, 'user1').delete('/api/notes/9999').expect(404);
         });
       });
     });

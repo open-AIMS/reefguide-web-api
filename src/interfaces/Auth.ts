@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // Auth schemas
 export const RegisterInputSchema = z.object({
@@ -55,7 +55,7 @@ export const TokenResponseSchema = z.object({
 export type TokenResponse = z.infer<typeof TokenResponseSchema>;
 
 // Set of user roles
-export const UserRolesEnumSchema = z.enum(["ADMIN"]);
+export const UserRolesEnumSchema = z.enum(['ADMIN']);
 export type UserRolesEnum = z.infer<typeof UserRolesEnumSchema>;
 
 // JWT contents
