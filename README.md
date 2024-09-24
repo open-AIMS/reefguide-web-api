@@ -109,20 +109,6 @@ npm run test
 2. Set up environment-specific config in `configs/[env].json`
 3. Deploy: `CONFIG_FILE_NAME=[env].json npx cdk deploy`
 
-## API Routes
-
-### Authentication
-
-Base URL: `/api/auth`
-
-- POST `/register`: Register a new user
-- POST `/login`: Authenticate and receive JWT
-- GET `/profile`: Get user profile (protected)
-
-### Other Routes
-
-- GET `/api`: API health check
-
 ## Project Structure
 
 - `src/`: Source code
@@ -245,11 +231,11 @@ This section documents the CRUD (Create, Read, Update, Delete) endpoints for pol
 
 All routes are prefixed with `/api`.
 
-## Auth Routes
+# Auth Routes
 
-All prefixed with `/auth`.
+All routes are prefixed with `/auth`.
 
-### 1. Register
+## 1. Register
 
 - **Endpoint:** POST `/register`
 - **Body:**
@@ -260,10 +246,10 @@ All prefixed with `/auth`.
   }
   ```
 - **Response:**
-  - Success (201): `{ "message": "User created successfully", "userId": "number" }`
-  - Error (400): `{ "message": "Error message" }`
+  - Success (201): `{ "userId": "string" }`
+  - Error (400): `{ "message": "User already exists" }`
 
-### 2. Login
+## 2. Login
 
 - **Endpoint:** POST `/login`
 - **Body:**
@@ -274,16 +260,39 @@ All prefixed with `/auth`.
   }
   ```
 - **Response:**
-  - Success (200): `{ "message": "Login successful", "token": "JWT_token_string" }`
+  - Success (200): `{ "token": "JWT_token_string", "refreshToken": "refresh_token_string" }`
   - Error (401): `{ "message": "Invalid credentials" }`
 
-### 3. Get User Profile
+## 3. Refresh Token
+
+- **Endpoint:** POST `/token`
+- **Body:**
+  ```json
+  {
+    "refreshToken": "string"
+  }
+  ```
+- **Response:**
+  - Success (200): `{ "token": "new_JWT_token_string" }`
+  - Error (401): `{ "message": "Invalid refresh token" }`
+
+## 4. Get User Profile
 
 - **Endpoint:** GET `/profile`
 - **Headers:** `Authorization: Bearer JWT_token_string`
 - **Response:**
-  - Success (200): `{ "user": { "id": "number", , "email": "string" } }`
+  - Success (200): `{ "user": { "id": "string", "email": "string", "roles": ["string"] } }`
   - Error (401): `{ "message": "Unauthorized" }`
+  - Error (500): `{ "message": "User object was not available after authorisation." }`
+
+## Notes
+
+- All endpoints use JSON for request and response bodies.
+- The register endpoint now returns only the user ID on success.
+- The login endpoint now returns both a JWT token and a refresh token.
+- A new endpoint has been added for refreshing the JWT token using a refresh token.
+- The profile endpoint now includes user roles in the response.
+- Error responses may vary based on the specific error encountered.
 
 ## Polygons
 
