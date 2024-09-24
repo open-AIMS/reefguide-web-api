@@ -1,11 +1,11 @@
-import passport from "passport";
+import passport from 'passport';
 import {
   ExtractJwt,
   Strategy as JwtStrategy,
   StrategyOptions,
-} from "passport-jwt";
-import { prisma } from "../apiSetup";
-import { ALGORITHM as KEY_ALGORITHM, PUBLIC_KEY } from "./jwtConfig";
+} from 'passport-jwt';
+import { prisma } from '../apiSetup';
+import { ALGORITHM as KEY_ALGORITHM, PUBLIC_KEY } from './jwtUtils';
 
 /**
  * Options for configuring the JWT strategy
@@ -55,7 +55,7 @@ passport.use(
       // If an error occurred, pass it to the `done` callback
       return done(error, false);
     }
-  })
+  }),
 );
 
 // Export the configured Passport instance

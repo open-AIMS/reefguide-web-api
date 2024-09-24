@@ -1,5 +1,5 @@
 import bcryptjs from 'bcryptjs';
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { processRequest } from 'zod-express-middleware';
 import {
   LoginInputSchema,
@@ -7,11 +7,18 @@ import {
   ProfileResponse,
   RegisterInputSchema,
   RegisterResponse,
+  TokenInputSchema,
+  TokenResponse,
 } from '../../interfaces/Auth';
 import { prisma } from '../apiSetup';
 import * as Exceptions from '../exceptions';
-import { signJwt } from './jwtConfig';
+import { generateRefreshToken, signJwt } from './jwtUtils';
 import { passport } from './passportConfig';
+import {
+  decodeRefreshToken,
+  getRefreshTokenObject,
+  isRefreshTokenValid as validateRefreshToken,
+} from './utils';
 
 require('express-async-errors');
 const router = express.Router();
@@ -22,7 +29,7 @@ const router = express.Router();
 router.post(
   '/register',
   processRequest({ body: RegisterInputSchema }),
-  async (req: Request, res: Response<RegisterResponse>) => {
+  async (req, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
 
     // Check if user already exists
@@ -57,7 +64,7 @@ router.post(
 router.post(
   '/login',
   processRequest({ body: LoginInputSchema }),
-  async (req: Request, res: Response<LoginResponse>) => {
+  async (req, res: Response<LoginResponse>) => {
     const { email, password: submittedPassword } = req.body;
 
     // Find user by email
@@ -94,7 +101,42 @@ router.post(
       roles: user.roles,
     });
 
-    res.json({ token });
+    // Generate a refresh token
+    const refreshToken = await generateRefreshToken(user.id);
+
+    // Return token and refresh token
+    res.json({ token, refreshToken });
+  },
+);
+
+/**
+ * Get a new token using refresh token
+ */
+router.post(
+  '/token',
+  processRequest({ body: TokenInputSchema }),
+  async (req, res: Response<TokenResponse>) => {
+    // Pull out body contents
+    const { refreshToken } = req.body;
+
+    // Try to decode the token
+    const decodedToken = decodeRefreshToken(refreshToken);
+
+    // The decoded token contains both an ID and a token - check for both
+    const tokenDbObject = await getRefreshTokenObject(decodedToken);
+
+    // We have a valid, matching refresh token - now check it's valid
+    validateRefreshToken(tokenDbObject);
+
+    // Everything is okay - issue a new JWT
+    const jwt = signJwt({
+      id: tokenDbObject.user.id,
+      email: tokenDbObject.user.email,
+      roles: tokenDbObject.user.roles,
+    });
+
+    // Return token and refresh token
+    res.json({ token: jwt });
   },
 );
 
@@ -104,7 +146,7 @@ router.post(
 router.get(
   '/profile',
   passport.authenticate('jwt', { session: false }),
-  (req: Request, res: Response<ProfileResponse>) => {
+  (req, res: Response<ProfileResponse>) => {
     if (!req.user) {
       throw new Exceptions.InternalServerError(
         'User object was not available after authorisation.',

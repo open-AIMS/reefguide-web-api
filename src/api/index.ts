@@ -1,6 +1,6 @@
 import express from 'express';
 import authRoutes from './auth/authRoutes';
-import { getJwks } from './auth/jwtConfig';
+import { getJwks } from './auth/jwtUtils';
 import { getConfig, Config } from './config';
 import polygons from './polygons/routes';
 import notes from './notes/routes';
@@ -27,9 +27,11 @@ router.get('/.well-known/jwks.json', (req, res) => {
 
 /** Health check GET route */
 router.get('/', (req, res) => {
-  res.json({
-    message: 'API healthy.',
-  }).send();
+  res
+    .json({
+      message: 'API healthy.',
+    })
+    .send();
 });
 
 // Passport auth routes

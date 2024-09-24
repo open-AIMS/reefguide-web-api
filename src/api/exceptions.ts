@@ -60,3 +60,30 @@ export class ForbiddenException extends BaseApiException {
     super(message, 401);
   }
 }
+
+/**
+ * Base class for refresh token related exceptions.
+ */
+export class RefreshTokenException extends UnauthorizedException {
+  constructor(message: string = 'Invalid refresh token') {
+    super(message);
+  }
+}
+
+/**
+ * Exception for expired refresh tokens.
+ */
+export class ExpiredRefreshTokenException extends RefreshTokenException {
+  constructor(message: string = 'Refresh token has expired') {
+    super(message);
+  }
+}
+
+/**
+ * Exception for invalid (e.g., revoked or malformed) refresh tokens.
+ */
+export class InvalidRefreshTokenException extends RefreshTokenException {
+  constructor(message: string = 'Refresh token is invalid') {
+    super(message);
+  }
+}

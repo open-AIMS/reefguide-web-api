@@ -15,13 +15,14 @@ enum UserRole {
 
 // User - linked to passport js
 model User {
-    id       Int           @id @default(autoincrement())
-    email    String        @unique
-    password String
+    id            Int            @id @default(autoincrement())
+    email         String         @unique
+    password      String
     // What roles does the user have?
-    roles    UserRole[]    @default([])
-    polygons Polygon[]
-    notes    PolygonNote[]
+    roles         UserRole[]     @default([])
+    polygons      Polygon[]
+    notes         PolygonNote[]
+    refreshTokens RefreshToken[]
 }
 
 // User submitted polygon - has notes
@@ -45,4 +46,18 @@ model PolygonNote {
     user_id    Int
     polygon    Polygon  @relation(fields: [polygon_id], references: [id], onDelete: Cascade)
     polygon_id Int
+}
+
+model RefreshToken {
+    id          Int      @id @default(autoincrement())
+    // The token value - this should be globally unique
+    token       String
+    created_at  DateTime @default(now())
+    // users have refresh token(s)
+    user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+    user_id     Int
+    // Expires at (timestamp seconds)
+    expiry_time Int
+    // Is this token valid? We can invalidate
+    valid       Boolean  @default(true)
 }

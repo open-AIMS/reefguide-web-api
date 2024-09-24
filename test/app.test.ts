@@ -1,20 +1,17 @@
+import { Express } from 'express';
 import request from 'supertest';
 import app, { prisma } from '../src/api/apiSetup';
+import { signJwt } from '../src/api/auth/jwtUtils';
+import { decodeRefreshToken, encodeRefreshToken } from '../src/api/auth/utils';
+import { InvalidRefreshTokenException } from '../src/api/exceptions';
 import {
   adminToken,
   clearDbs,
+  user1Email,
   user1Token,
   user2Token,
   userSetup,
 } from './utils';
-import { Express } from 'express';
-
-beforeEach(async () => {
-  // clear DB between all runs
-  await clearDbs();
-  // Re-setup users
-  await userSetup();
-});
 
 afterAll(async () => {
   // clear when finished
@@ -59,7 +56,7 @@ const authRequest = (app: Express, tokenType: TokenType = 'user1') => {
   };
 };
 
-describe('API Routes', () => {
+describe('API', () => {
   let user1Id: number;
   let polygonId: number;
   let noteId: number;
@@ -70,7 +67,7 @@ describe('API Routes', () => {
 
     // Get user1's ID
     const user1 = await prisma.user.findUnique({
-      where: { email: 'user1@example.com' },
+      where: { email: user1Email },
     });
     user1Id = user1!.id;
 
@@ -98,7 +95,7 @@ describe('API Routes', () => {
     await clearDbs();
   });
 
-  describe('API Routes', () => {
+  describe('Routes', () => {
     describe('Health Check', () => {
       it('should return 200 for unauthenticated request', async () => {
         await request(app).get('/api').expect(200);
@@ -130,7 +127,7 @@ describe('API Routes', () => {
         it('should return 400 for existing email', async () => {
           await request(app)
             .post('/api/auth/register')
-            .send({ email: 'user1@example.com', password: 'password123' })
+            .send({ email: user1Email, password: 'password123' })
             .expect(400);
         });
       });
@@ -139,17 +136,94 @@ describe('API Routes', () => {
         it('should login an existing user', async () => {
           const res = await request(app)
             .post('/api/auth/login')
-            .send({ email: 'user1@example.com', password: 'password123' })
+            .send({ email: user1Email, password: 'password123' })
             .expect(200);
-
           expect(res.body).toHaveProperty('token');
+          expect(res.body).toHaveProperty('refreshToken');
         });
 
         it('should return 401 for invalid credentials', async () => {
           await request(app)
             .post('/api/auth/login')
-            .send({ email: 'user1@example.com', password: 'wrongpassword' })
+            .send({ email: user1Email, password: 'wrongpassword' })
             .expect(401);
+        });
+
+        it('should return 401 for non-existent user', async () => {
+          await request(app)
+            .post('/api/auth/login')
+            .send({ email: 'nonexistent@example.com', password: 'password123' })
+            .expect(401);
+        });
+      });
+
+      describe('POST /api/auth/token', () => {
+        it('should issue a new token with a valid refresh token', async () => {
+          // Create a valid refresh token for testing
+          const user = await prisma.user.findUniqueOrThrow({
+            where: { email: user1Email },
+          });
+
+          const refreshTokenRecord = await prisma.refreshToken.create({
+            data: {
+              user_id: user.id,
+              token: 'valid-refresh-token',
+              expiry_time: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+              valid: true,
+            },
+          });
+
+          const validRefreshToken = encodeRefreshToken({
+            id: refreshTokenRecord.id,
+            token: refreshTokenRecord.token,
+          });
+
+          let res = await request(app)
+            .post('/api/auth/token')
+            .send({ refreshToken: validRefreshToken })
+            .expect(200);
+          expect(res.body).toHaveProperty('token');
+
+          // Check the new token works
+          const newToken = res.body.token as string;
+          res = await request(app)
+            .get('/api/auth/profile')
+            .set('Authorization', `Bearer ${newToken}`)
+            .expect(200);
+
+          expect(res.body.user).toHaveProperty('email', user1Email);
+        });
+
+        it('should return 401 for an invalid refresh token', async () => {
+          await request(app)
+            .post('/api/auth/token')
+            .send({ refreshToken: 'invalid-refresh-token' })
+            .expect(401);
+        });
+
+        it('should return 401 for an expired refresh token', async () => {
+          const user = await prisma.user.findUnique({
+            where: { email: user1Email },
+          });
+          if (user) {
+            const expiredToken = await prisma.refreshToken.create({
+              data: {
+                user_id: user.id,
+                token: 'expired-token',
+                expiry_time: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
+                valid: true,
+              },
+            });
+            const expiredRefreshToken = encodeRefreshToken({
+              id: expiredToken.id,
+              token: expiredToken.token,
+            });
+
+            await request(app)
+              .post('/api/auth/token')
+              .send({ refreshToken: expiredRefreshToken })
+              .expect(401);
+          }
         });
       });
 
@@ -159,12 +233,46 @@ describe('API Routes', () => {
             .get('/api/auth/profile')
             .expect(200);
 
-          expect(res.body.user).toHaveProperty('email', 'user1@example.com');
+          expect(res.body.user).toHaveProperty('email', user1Email);
         });
 
         it('should return 401 for unauthenticated request', async () => {
           await request(app).get('/api/auth/profile').expect(401);
         });
+
+        it('should return 401 for expired token', async () => {
+          const user = await prisma.user.findUnique({
+            where: { email: user1Email },
+          });
+          if (user) {
+            const expiredToken = signJwt(
+              { id: user.id, email: user.email, roles: user.roles },
+              { expiresIn: '-1h' }, // Expired 1 hour ago
+            );
+            await request(app)
+              .get('/api/auth/profile')
+              .set('Authorization', `Bearer ${expiredToken}`)
+              .expect(401);
+          }
+        });
+      });
+    });
+
+    describe('Refresh Token Utilities', () => {
+      it('should correctly encode and decode refresh tokens', () => {
+        const originalToken = { id: 1, token: 'test-token' };
+        const encodedToken = Buffer.from(
+          JSON.stringify(originalToken),
+        ).toString('base64');
+        const decodedToken = decodeRefreshToken(encodedToken);
+        expect(decodedToken).toEqual(originalToken);
+      });
+
+      it('should throw an error for invalid refresh token format', () => {
+        const invalidToken = 'invalid-token-format';
+        expect(() => decodeRefreshToken(invalidToken)).toThrow(
+          InvalidRefreshTokenException,
+        );
       });
     });
 
@@ -279,7 +387,11 @@ describe('API Routes', () => {
             .expect(200);
 
           expect(res.body.polygon).toHaveProperty('id', polygonId);
-          expect(res.body.polygon.polygon.coordinates[0].map((a : Array<number>) => a.toString())).toContain([2, 2].toString());
+          expect(
+            res.body.polygon.polygon.coordinates[0].map((a: Array<number>) =>
+              a.toString(),
+            ),
+          ).toContain([2, 2].toString());
         });
 
         it('should return 401 if user is not the owner', async () => {
