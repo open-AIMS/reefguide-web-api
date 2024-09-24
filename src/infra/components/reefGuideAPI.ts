@@ -333,10 +333,10 @@ export class ReefGuideAPI extends Construct {
       'cd efs-utils',
       './build-deb.sh',
       'sudo apt -y install ./build/amazon-efs-utils*deb',
-
+      'cd home/ubuntu',
       // setup reefguide mount in /efs of ubuntu user
       'mkdir /home/ubuntu/efs',
-      `mount -t efs -o tls,iam ${fileSystem.fileSystemId} efs/`,
+      `mount -t efs -o tls,iam ${fileSystem.fileSystemId} /home/ubuntu/efs/`,
 
       // Install AWS CLI
       'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
