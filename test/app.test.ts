@@ -261,10 +261,7 @@ describe('API', () => {
     describe('Refresh Token Utilities', () => {
       it('should correctly encode and decode refresh tokens', () => {
         const originalToken = { id: 1, token: 'test-token' };
-        const encodedToken = Buffer.from(
-          JSON.stringify(originalToken),
-        ).toString('base64');
-        const decodedToken = decodeRefreshToken(encodedToken);
+        const decodedToken = decodeRefreshToken(encodeRefreshToken(originalToken));
         expect(decodedToken).toEqual(originalToken);
       });
 

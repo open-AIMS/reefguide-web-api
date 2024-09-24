@@ -144,3 +144,6 @@ scripts/flatten.sh
 
 # Ensure this file is included
 !src/api/types/express/*
+
+# Config management
+env.json
