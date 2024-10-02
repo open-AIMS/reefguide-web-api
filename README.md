@@ -117,7 +117,8 @@ Setup a local psql DB for integration testing.
 docker-compose up
 ```
 
-Then, keeping this running, change your .env to specify the local DB
+Then, keeping this running, change your .env to specify the local DB.
+If you get a connection error, try `127.0.0.1` instead of `localhost`.
 
 ```
 DATABASE_URL=postgresql://admin:password@localhost:5432
