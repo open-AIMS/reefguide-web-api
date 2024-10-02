@@ -29,15 +29,60 @@ A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and
 1. Run DB migration `npm run db-reset`
 1. Start server with auto-restart `npm run dev`
 
-## Setup (AWS)
+## Setup and deploy with AWS
 
-First, create a config json file in `configs` e.g. `dev.json`. The `sample.json` includes example values.
+Ensure you have your `npm` environment setup and installed as above i.e.
+
+```
+nvm use 20
+npm install
+```
+
+Start by creating a configuration file, using either the [local](#local-configuration-method-new-deployment) or [remote](#remote-configuration-method-existing-configuration) method below.
+
+### Local configuration method (new deployment)
+
+create a config json file in `configs` e.g. `dev.json`. The `sample.json` includes example values.
 
 Next, run `npm run aws-keys -- <secret name e.g. dev-reefguide-creds>` with appropriate AWS creds in the environment, this creates an AWS secret manager with a generated keypair for JWT signing.
 
 Then open this secret and add `DATABASE_URL` and `DIRECT_URL` fields which correspond to prisma values for the postgresql DB provider.
 
-Ensure your CDK environment is bootstrapped
+### Remote configuration method (existing configuration)
+
+With a configuration repo which conforms to the specifications defined below in [config](#configuration), you can pull it with the config script.
+
+```
+./config <stage> <namespace> --target <repo clone string>
+```
+
+e.g.
+
+```
+./config org dev --target git@github.com:org/repo.git
+```
+
+### Deploying with CDK
+
+First, export your config file path
+
+```
+export CONFIG_FILE_NAME=<file name.json e.g. dev.json>
+```
+
+e.g.
+
+```
+export CONFIG_FILE_NAME=dev.json
+```
+
+Then, ensure you have AWS credentials active for the target environment, you can check using
+
+```
+aws sts get-caller-identity
+```
+
+Then, ensure your CDK environment is bootstrapped (if on new account)
 
 ```
 npx cdk bootstrap
