@@ -1,9 +1,9 @@
 {
-    "name": "madame-rest-api",
+    "name": "reefguide-web-api",
     "version": "0.1",
     "description": "REST API to support ReefGuide AIMS.",
     "bin": {
-        "cdk-example": "bin/madame-rest-api.js"
+        "cdk-example": "bin/reefguide-web-api.js"
     },
     "main": "src/index.ts",
     "scripts": {
