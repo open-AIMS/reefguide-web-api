@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { JwtContents, RefreshTokenContents } from '../../interfaces/Auth';
 import { prisma } from '../apiSetup';
-import { config } from '../index';
+import { config } from '../config';
 import { base64encode, encodeRefreshToken } from './utils';
 
 // Key signing and validation parameters

@@ -1,5 +1,5 @@
 import app from './api/apiSetup';
-import { config } from './api/index';
+import { config } from './api/config';
 
 const port = config.port || 5000;
 app.listen(port, () => {

@@ -1,16 +1,16 @@
-import { UserRole } from "@prisma/client";
-import express, { Response } from "express";
-import { z } from "zod";
-import { processRequest } from "zod-express-middleware";
-import { passport } from "../auth/passportConfig";
-import { userIsAdminMiddleware } from "../auth/utils";
-import { InternalServerError, NotFoundException } from "../exceptions";
+import { UserRole } from '@prisma/client';
+import express, { Response } from 'express';
+import { z } from 'zod';
+import { processRequest } from 'zod-express-middleware';
+import { passport } from '../auth/passportConfig';
+import { userIsAdminMiddleware } from '../auth/utils';
+import { InternalServerError, NotFoundException } from '../exceptions';
 
-require("express-async-errors");
+require('express-async-errors');
 export const router = express.Router();
 
-import { prisma } from "../apiSetup";
-import { changePassword, registerUser } from "../services/auth";
+import { prisma } from '../apiSetup';
+import { changePassword, registerUser } from '../services/auth';
 
 const UpdateUserRolesSchema = z.object({
   roles: z.array(z.nativeEnum(UserRole)),
@@ -38,8 +38,8 @@ const CreateUserSchema = z.object({
  * Get all users (admin only)
  */
 router.get(
-  "/",
-  passport.authenticate("jwt", { session: false }),
+  '/',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   async (req, res: Response<UserResponse[]>) => {
     try {
@@ -52,18 +52,18 @@ router.get(
       });
       res.json(users);
     } catch (error) {
-      console.error("Error fetching users:", error);
-      throw new InternalServerError("Failed to fetch users");
+      console.error('Error fetching users:', error);
+      throw new InternalServerError('Failed to fetch users');
     }
-  }
+  },
 );
 
 /**
  * Get a specific user by ID (admin only)
  */
 router.get(
-  "/:id",
-  passport.authenticate("jwt", { session: false }),
+  '/:id',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   processRequest({ params: z.object({ id: z.string() }) }),
   async (req, res: Response<UserResponse>) => {
@@ -80,24 +80,24 @@ router.get(
       });
 
       if (!user) {
-        throw new NotFoundException("User not found");
+        throw new NotFoundException('User not found');
       }
 
       res.json(user);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      console.error("Unhandled error fetching user:", error);
-      throw new InternalServerError("Failed to fetch user");
+      console.error('Unhandled error fetching user:', error);
+      throw new InternalServerError('Failed to fetch user');
     }
-  }
+  },
 );
 
 /**
  * Create a new user (admin only)
  */
 router.post(
-  "/",
-  passport.authenticate("jwt", { session: false }),
+  '/',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   processRequest({
     body: CreateUserSchema,
@@ -107,15 +107,15 @@ router.post(
     // Create the user
     const newUserId = await registerUser({ email, password, roles });
     res.status(201).json({ id: newUserId });
-  }
+  },
 );
 
 /**
  * Update user roles (admin only)
  */
 router.put(
-  "/:id/roles",
-  passport.authenticate("jwt", { session: false }),
+  '/:id/roles',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   processRequest({
     body: UpdateUserRolesSchema,
@@ -138,18 +138,18 @@ router.put(
 
       res.json(user);
     } catch (error) {
-      console.error("Error updating user roles:", error);
-      throw new InternalServerError("Failed to update user roles");
+      console.error('Error updating user roles:', error);
+      throw new InternalServerError('Failed to update user roles');
     }
-  }
+  },
 );
 
 /**
  * Update user password (admin only)
  */
 router.put(
-  "/:id/password",
-  passport.authenticate("jwt", { session: false }),
+  '/:id/password',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   processRequest({
     body: UpdateUserPasswordSchema,
@@ -160,15 +160,15 @@ router.put(
 
     await changePassword({ id: userId, password });
     res.sendStatus(200);
-  }
+  },
 );
 
 /**
  * Delete a user (admin only)
  */
 router.delete(
-  "/:id",
-  passport.authenticate("jwt", { session: false }),
+  '/:id',
+  passport.authenticate('jwt', { session: false }),
   userIsAdminMiddleware,
   async (req, res) => {
     const userId = parseInt(req.params.id);
@@ -180,8 +180,8 @@ router.delete(
 
       res.sendStatus(204);
     } catch (error) {
-      console.error("Error deleting user:", error);
-      throw new InternalServerError("Failed to delete user");
+      console.error('Error deleting user:', error);
+      throw new InternalServerError('Failed to delete user');
     }
-  }
+  },
 );

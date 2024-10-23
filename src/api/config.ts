@@ -52,8 +52,8 @@ export function getConfig(): Config {
   const env = envSchema.parse(process.env);
 
   // Replace escaped newlines in JWT keys
-  const privateKey = env.JWT_PRIVATE_KEY.replace(/\\n/g, "\n");
-  const publicKey = env.JWT_PUBLIC_KEY.replace(/\\n/g, "\n");
+  const privateKey = env.JWT_PRIVATE_KEY.replace(/\\n/g, '\n');
+  const publicKey = env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n');
 
   // Construct the configuration object
   const config: Config = {
@@ -64,7 +64,7 @@ export function getConfig(): Config {
       keyId: env.JWT_KEY_ID,
     },
     apiDomain: env.API_DOMAIN,
-    isDevelopment: env.NODE_ENV !== "production",
+    isDevelopment: env.NODE_ENV !== 'production',
     database: {
       url: env.DATABASE_URL,
       directUrl: env.DIRECT_URL,
@@ -80,7 +80,7 @@ export function getConfig(): Config {
 
   // Log configuration in non-production environments
   if (config.isDevelopment) {
-    console.debug("API Configuration:", JSON.stringify(config, null, 2));
+    console.debug('API Configuration:', JSON.stringify(config, null, 2));
   }
 
   // Update process.env with parsed values

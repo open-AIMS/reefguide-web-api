@@ -9,8 +9,8 @@ import {
   ExpiredRefreshTokenException,
   InvalidRefreshTokenException,
 } from '../exceptions';
-import { NextFunction } from "express";
-import { UnauthorizedException } from "../exceptions";
+import { NextFunction } from 'express';
+import { UnauthorizedException } from '../exceptions';
 
 /**
  * is the user an admin?
@@ -122,15 +122,15 @@ export const isRefreshTokenValid = (refreshToken: RefreshToken): boolean => {
 export const userIsAdminMiddleware = (
   req: Express.Request,
   res: Express.Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (!req.user) {
-    throw new UnauthorizedException("Unauthenticated.");
+    throw new UnauthorizedException('Unauthenticated.');
   }
 
   if (!userIsAdmin(req.user)) {
     throw new UnauthorizedException(
-      "You are not authorised to access this service."
+      'You are not authorised to access this service.',
     );
   }
 
