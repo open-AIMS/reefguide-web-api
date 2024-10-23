@@ -279,9 +279,9 @@ All routes are prefixed with `/api`.
 
 # Auth Routes
 
-All routes are prefixed with `/auth`.
+All prefixed with `/auth`.
 
-## 1. Register
+### 1. Register
 
 - **Endpoint:** POST `/register`
 - **Body:**
@@ -433,6 +433,104 @@ Updates an existing note.
 - **Response**: Returns the updated note object
 
 All endpoints require JWT authentication. Admin users have access to all resources, while regular users can only access their own resources. Invalid requests or unauthorized access attempts will result in appropriate error responses.
+
+## Cluster Management
+
+Routes for managing the ReefGuideAPI ECS cluster scaling and status.
+
+### GET /admin/status
+
+Retrieves the current status of the ECS cluster.
+
+- **Authentication**: Required (JWT)
+- **Authorization**: Admin only
+- **Parameters**: None
+- **Response**: Returns the cluster status object
+
+```json
+{
+  "runningCount": 5,
+  "pendingCount": 0,
+  "desiredCount": 3,
+  "deployments": [
+    {
+      "status": "PRIMARY",
+      "taskDefinition": "arn:aws:ecs:ap-southeast-2:xxx:task-definition/xxx:8",
+      "desiredCount": 3,
+      "pendingCount": 0,
+      "runningCount": 3,
+      "failedTasks": 0,
+      "rolloutState": "IN_PROGRESS",
+      "rolloutStateReason": "ECS deployment ecs-svc/1311621013630114425 in progress."
+    },
+    {
+      "status": "ACTIVE",
+      "taskDefinition": "arn:aws:ecs:ap-southeast-2:xxx:task-definition/xxx:8",
+      "desiredCount": 0,
+      "pendingCount": 0,
+      "runningCount": 2,
+      "failedTasks": 0,
+      "rolloutState": "COMPLETED",
+      "rolloutStateReason": "ECS deployment ecs-svc/4408993298399279146 completed."
+    }
+  ],
+  "events": [
+    {
+      "createdAt": "2024-10-23T01:03:38.329Z",
+      "message": "(service reefguide-reefguideapireefguideserviceService9CF43A7C-warFx9zMuB8k) registered 2 targets in (target-group arn:aws:elasticloadbalancing:ap-southeast-2:xxx:targetgroup/reefgu-reefg-PAREXETNHOCW/e5dd5bec27f8064b)"
+    },
+    {
+      "createdAt": "2024-10-23T01:03:17.851Z",
+      "message": "(service reefguide-reefguideapireefguideserviceService9CF43A7C-warFx9zMuB8k) registered 1 targets in (target-group arn:aws:elasticloadbalancing:ap-southeast-2:xxx:targetgroup/reefgu-reefg-PAREXETNHOCW/e5dd5bec27f8064b)"
+    },
+    {
+      "createdAt": "2024-10-23T01:02:36.941Z",
+      "message": "(service reefguide-reefguideapireefguideserviceService9CF43A7C-warFx9zMuB8k) has started 2 tasks: (task 04dfb8c773cc47a1b0442dc1cabc497a) (task 239bccf79b8841c2afc9009496987dc0)."
+    },
+    {
+      "createdAt": "2024-10-23T01:02:14.081Z",
+      "message": "(service reefguide-reefguideapireefguideserviceService9CF43A7C-warFx9zMuB8k, taskSet ecs-svc/4408993298399279146) has begun draining connections on 1 tasks."
+    },
+    {
+      "createdAt": "2024-10-23T01:02:14.077Z",
+      "message": "(service reefguide-reefguideapireefguideserviceService9CF43A7C-warFx9zMuB8k) deregistered 1 targets in (target-group arn:aws:elasticloadbalancing:ap-southeast-2:xxx:targetgroup/reefgu-reefg-PAREXETNHOCW/e5dd5bec27f8064b)"
+    }
+  ],
+  "serviceStatus": "ACTIVE"
+}
+```
+
+### POST /admin/scale
+
+Scales the ECS cluster to a specified number of tasks.
+
+- **Authentication**: Required (JWT)
+- **Authorization**: Admin only
+- **Parameters**: None
+- **Request Body**:
+
+```json
+{
+  "desiredCount": number // Between 0 and 10 inclusive
+}
+```
+
+- **Response**: 200 OK
+
+### POST /admin/redeploy
+
+Forces a new deployment of the service, which will pull the latest version of the container image.
+
+- **Authentication**: Required (JWT)
+- **Authorization**: Admin only
+- **Parameters**: None
+- **Request Body**: None
+- **Response**: 200 OK
+- **Notes**:
+  - This operation will perform a rolling update with zero downtime
+  - Old tasks will be replaced with new tasks pulling the latest image
+  - The deployment uses a minimum healthy percent of 50% and maximum percent of 200% to ensure service availability
+  - Progress can be monitored via the `/cluster/status` endpoint
 
 # Configuring CDK
 

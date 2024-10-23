@@ -12,6 +12,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url(),
+  AWS_REGION: z.string(),
+  ECS_CLUSTER_NAME: z.string(),
+  ECS_SERVICE_NAME: z.string(),
 });
 
 /**
@@ -30,6 +33,13 @@ export interface Config {
     url: string;
     directUrl: string;
   };
+  aws: {
+    region: string;
+    ecs: {
+      clusterName: string;
+      serviceName: string;
+    };
+  };
 }
 
 /**
@@ -42,8 +52,8 @@ export function getConfig(): Config {
   const env = envSchema.parse(process.env);
 
   // Replace escaped newlines in JWT keys
-  const privateKey = env.JWT_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const publicKey = env.JWT_PUBLIC_KEY.replace(/\\n/g, '\n');
+  const privateKey = env.JWT_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const publicKey = env.JWT_PUBLIC_KEY.replace(/\\n/g, "\n");
 
   // Construct the configuration object
   const config: Config = {
@@ -54,16 +64,23 @@ export function getConfig(): Config {
       keyId: env.JWT_KEY_ID,
     },
     apiDomain: env.API_DOMAIN,
-    isDevelopment: env.NODE_ENV !== 'production',
+    isDevelopment: env.NODE_ENV !== "production",
     database: {
       url: env.DATABASE_URL,
       directUrl: env.DIRECT_URL,
+    },
+    aws: {
+      region: env.AWS_REGION,
+      ecs: {
+        clusterName: env.ECS_CLUSTER_NAME,
+        serviceName: env.ECS_SERVICE_NAME,
+      },
     },
   };
 
   // Log configuration in non-production environments
   if (config.isDevelopment) {
-    console.debug('API Configuration:', JSON.stringify(config, null, 2));
+    console.debug("API Configuration:", JSON.stringify(config, null, 2));
   }
 
   // Update process.env with parsed values
@@ -73,13 +90,4 @@ export function getConfig(): Config {
   return config;
 }
 
-/**
- * Example usage of getConfig function
- */
-try {
-  const config = getConfig();
-  console.log(`Server starting on port ${config.port}`);
-} catch (error) {
-  console.error('Failed to load configuration:', error);
-  process.exit(1);
-}
+export const config = getConfig();

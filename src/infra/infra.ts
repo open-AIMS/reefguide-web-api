@@ -91,7 +91,14 @@ export class ReefguideWebApiStack extends cdk.Stack {
       config: config.webAPI,
       domainName: domains.webAPI,
       hz: hz,
+
+      // Expose the cluster information to web API so that it can control it
+      ecs_cluster_name: reefGuideApi.fargateService.cluster.clusterName,
+      ecs_service_name: reefGuideApi.fargateService.serviceName,
     });
+
+    // Let the Web API interact with the Julia cluster
+    webAPI.registerCluster(reefGuideApi.fargateService);
 
     // ========
     // FRONTEND

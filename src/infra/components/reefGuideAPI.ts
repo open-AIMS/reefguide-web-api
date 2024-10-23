@@ -183,7 +183,7 @@ export class ReefGuideAPI extends Construct {
       securityGroups: [serviceSecurityGroup],
       assignPublicIp: true, // TODO Change this if using private subnets with NAT
       // give plenty of time
-      healthCheckGracePeriod: Duration.minutes(5),
+      healthCheckGracePeriod: Duration.minutes(10),
     });
 
     // Allow Fargate instance to access EFS
