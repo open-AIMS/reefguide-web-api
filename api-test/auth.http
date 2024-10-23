@@ -28,6 +28,16 @@ Content-Type: {{contentType}}
 
 ### Store the JWT token from the login response
 @authToken = {{login.response.body.token}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Use refresh to get new token
+# @name refresh
+POST {{baseUrl}}/auth/token
+Content-Type: {{contentType}}
+
+{
+    "refreshToken" : "{{refreshToken}}"
+}
 
 ### Get user profile (protected route)
 GET {{baseUrl}}/auth/profile
@@ -202,7 +212,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "desiredCount": 3
+    "desiredCount": 1
 }
 
 ### Try to scale cluster without auth (should fail)
