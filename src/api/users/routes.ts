@@ -52,7 +52,6 @@ router.get(
       });
       res.json(users);
     } catch (error) {
-      console.error('Error fetching users:', error);
       throw new InternalServerError('Failed to fetch users');
     }
   },
@@ -86,7 +85,6 @@ router.get(
       res.json(user);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      console.error('Unhandled error fetching user:', error);
       throw new InternalServerError('Failed to fetch user');
     }
   },
@@ -138,7 +136,6 @@ router.put(
 
       res.json(user);
     } catch (error) {
-      console.error('Error updating user roles:', error);
       throw new InternalServerError('Failed to update user roles');
     }
   },
@@ -180,7 +177,6 @@ router.delete(
 
       res.sendStatus(204);
     } catch (error) {
-      console.error('Error deleting user:', error);
       throw new InternalServerError('Failed to delete user');
     }
   },

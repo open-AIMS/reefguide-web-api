@@ -77,7 +77,6 @@ router.post(
       await ecsClient.send(command);
       res.sendStatus(200);
     } catch (error) {
-      console.error('Error scaling ECS service:', error);
       throw new InternalServerError(
         'Failed to scale ECS service. Error: ' + error,
       );
@@ -141,7 +140,6 @@ router.get(
         serviceStatus: service.status,
       });
     } catch (error) {
-      console.error('Error describing ECS service:', error);
       throw new InternalServerError(
         'Failed to describe ECS service. Error: ' + error,
       );
@@ -172,7 +170,6 @@ router.post(
       await ecsClient.send(command);
       res.sendStatus(200);
     } catch (error) {
-      console.error('Error forcing redeployment:', error);
       throw new InternalServerError(
         'Failed to initiate redeployment. Error ' + error,
       );
