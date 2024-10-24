@@ -1,7 +1,7 @@
 {
     "name": "reefguide-web-api",
     "version": "0.1",
-    "description": "REST API to support Reef Guide (AIMS).",
+    "description": "REST API to support ReefGuide AIMS.",
     "bin": {
         "cdk-example": "bin/reefguide-web-api.js"
     },
@@ -25,6 +25,7 @@
     "author": "AIMS",
     "license": "MIT",
     "dependencies": {
+        "@aws-sdk/client-ecs": "^3.677.0",
         "@cloudcomponents/cdk-static-website": "^2.2.0",
         "@codegenie/serverless-express": "^4.15.0",
         "@prisma/client": "^5.19.1",

@@ -17,6 +17,7 @@ export function errorMiddleware(
   // Only print out logs for errors if not testing
   if (process.env.TEST_MODE !== 'true') {
     console.error(err);
+    console.error(err.stack ?? 'No stack trace available.');
   }
 
   let statusCode = 500;

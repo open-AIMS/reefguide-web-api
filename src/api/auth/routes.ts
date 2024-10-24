@@ -1,5 +1,5 @@
 import bcryptjs from 'bcryptjs';
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { processRequest } from 'zod-express-middleware';
 import {
   LoginInputSchema,
@@ -19,9 +19,10 @@ import {
   getRefreshTokenObject,
   isRefreshTokenValid as validateRefreshToken,
 } from './utils';
+import { registerUser } from '../services/auth';
 
 require('express-async-errors');
-const router = express.Router();
+export const router = express.Router();
 
 /**
  * Register a new user
@@ -29,32 +30,10 @@ const router = express.Router();
 router.post(
   '/register',
   processRequest({ body: RegisterInputSchema }),
-  async (req, res: Response<RegisterResponse>) => {
+  async (req: Request, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new Exceptions.BadRequestException('User already exists');
-    }
-
-    // Hash the password
-    const hashedPassword = await bcryptjs.hash(password, 10);
-
-    // Create new user
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        // No roles by default
-        roles: [],
-      },
-    });
-
-    res.status(201).json({ userId: newUser.id });
+    const newUserId = await registerUser({ email, password, roles: [] });
+    res.status(201).json({ userId: newUserId });
   },
 );
 
@@ -64,7 +43,7 @@ router.post(
 router.post(
   '/login',
   processRequest({ body: LoginInputSchema }),
-  async (req, res: Response<LoginResponse>) => {
+  async (req: Request, res: Response<LoginResponse>) => {
     const { email, password: submittedPassword } = req.body;
 
     // Find user by email
@@ -146,7 +125,7 @@ router.post(
 router.get(
   '/profile',
   passport.authenticate('jwt', { session: false }),
-  (req, res: Response<ProfileResponse>) => {
+  (req: Request, res: Response<ProfileResponse>) => {
     if (!req.user) {
       throw new Exceptions.InternalServerError(
         'User object was not available after authorisation.',
@@ -156,5 +135,3 @@ router.get(
     res.json({ user: req.user });
   },
 );
-
-export default router;

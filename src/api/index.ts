@@ -1,24 +1,13 @@
 import express from 'express';
-import authRoutes from './auth/authRoutes';
 import { getJwks } from './auth/jwtUtils';
-import { getConfig, Config } from './config';
-import polygons from './polygons/routes';
-import notes from './notes/routes';
+import { router as adminRoutes } from './admin/routes';
+import { router as authRoutes } from './auth/routes';
+import { router as noteRoutes } from './notes/routes';
+import { router as polygonRoutes } from './polygons/routes';
+import { router as userRoutes } from './users/routes';
 
 require('express-async-errors');
 const router = express.Router();
-
-// This can be used at other parts of the app to understand the config
-export let config: Config;
-
-try {
-  console.log('Config loading...');
-  config = getConfig();
-  console.log('Config loaded and validated from environment.');
-} catch (error) {
-  console.error('Failed to load configuration:', error);
-  process.exit(1);
-}
 
 // jwks.json wkt endpoint
 router.get('/.well-known/jwks.json', (req, res) => {
@@ -36,7 +25,9 @@ router.get('/', (req, res) => {
 
 // Passport auth routes
 router.use('/auth', authRoutes);
-router.use('/polygons', polygons);
-router.use('/notes', notes);
+router.use('/polygons', polygonRoutes);
+router.use('/notes', noteRoutes);
+router.use('/admin', adminRoutes);
+router.use('/users', userRoutes);
 
 export default router;

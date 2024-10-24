@@ -4,8 +4,10 @@ import {
   aws_lambda as lambda,
   aws_lambda_nodejs as nodejs,
   aws_secretsmanager as sm,
+  aws_iam as iam,
 } from 'aws-cdk-lib';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as r53 from 'aws-cdk-lib/aws-route53';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
@@ -24,6 +26,10 @@ export interface WebAPIProps {
   certificate: acm.ICertificate;
   /** The configuration object for the web api service */
   config: WebAPIConfig;
+  /** The name of the ECS cluster service which hosts the Julia compute nodes */
+  ecs_cluster_name: string;
+  /** The name of the ECS service which hosts the Julia compute nodes */
+  ecs_service_name: string;
 }
 
 /**
@@ -38,6 +44,9 @@ export class WebAPI extends Construct {
 
   /** Endpoint for Web API access (format: https://domain:port) */
   public readonly endpoint: string;
+
+  /** The underlying lambda function */
+  private readonly lambda: lambda.Function;
 
   constructor(scope: Construct, id: string, props: WebAPIProps) {
     super(scope, id);
@@ -71,7 +80,7 @@ export class WebAPI extends Construct {
 
     // Use the Node JS L3 stack to help esbuild/bundle the Node function see
     // https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda_nodejs-readme.html
-    const api = new nodejs.NodejsFunction(this, 'api', {
+    this.lambda = new nodejs.NodejsFunction(this, 'api', {
       entry: 'src/infra/lambda.ts',
       handler: 'handler',
       environment: {
@@ -80,6 +89,8 @@ export class WebAPI extends Construct {
         API_SECRETS_ARN: config.apiSecretsArn,
         // Fully qualified domain for API domain - this defines the JWT iss
         API_DOMAIN: this.endpoint,
+        ECS_CLUSTER_NAME: props.ecs_cluster_name,
+        ECS_SERVICE_NAME: props.ecs_service_name,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {
@@ -96,7 +107,7 @@ export class WebAPI extends Construct {
     });
 
     // allow read of db secrets
-    dbSecret.grantRead(api);
+    dbSecret.grantRead(this.lambda);
 
     // Create an API Gateway REST API
     const restApi = new apigateway.RestApi(this, 'apigw', {
@@ -114,7 +125,7 @@ export class WebAPI extends Construct {
     });
 
     // Create an API Gateway Lambda Integration
-    const lambdaIntegration = new apigateway.LambdaIntegration(api);
+    const lambdaIntegration = new apigateway.LambdaIntegration(this.lambda);
 
     // Add a root resource and method - proxy through all routes
     const rootResource = restApi.root.addResource('{proxy+}');
@@ -135,5 +146,29 @@ export class WebAPI extends Construct {
       target: route53.RecordTarget.fromAlias(new targets.ApiGateway(restApi)),
       recordName: props.domainName,
     });
+  }
+
+  /**
+   * Registers an ECS service with this API by granting the necessary permissions
+   * to the Lambda function to manage the service
+   * @param service The ECS Fargate service to register
+   */
+  public registerCluster(service: ecs.FargateService) {
+    // Create a policy that allows the Lambda to describe and update the ECS service
+    const ecsPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        // Permissions to get service status
+        'ecs:DescribeServices',
+        'ecs:ListServices',
+        // Permissions to modify service
+        'ecs:UpdateService',
+      ],
+      // Scope the permissions to just this specific service and its cluster
+      resources: [service.serviceArn, service.cluster.clusterArn],
+    });
+
+    // Add the policy to the Lambda's role
+    this.lambda.addToRolePolicy(ecsPolicy);
   }
 }

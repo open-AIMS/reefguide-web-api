@@ -27,7 +27,17 @@ Content-Type: {{contentType}}
 }
 
 ### Store the JWT token from the login response
-@authToken = {{$dotenv TOKEN}}
+@authToken = {{login.response.body.token}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Use refresh to get new token
+# @name refresh
+POST {{baseUrl}}/auth/token
+Content-Type: {{contentType}}
+
+{
+    "refreshToken" : "{{refreshToken}}"
+}
 
 ### Get user profile (protected route)
 GET {{baseUrl}}/auth/profile
@@ -187,4 +197,162 @@ Authorization: Bearer {{authToken}}
 ### Try to access a polygon belonging to another user (should fail)
 # Note: This assumes the existence of another user's polygon. You may need to adjust the ID.
 GET {{baseUrl}}/polygons/1
+Authorization: Bearer {{authToken}}
+
+### CLUSTER MANAGEMENT
+# Note: These endpoints require admin privileges
+
+### Get current cluster status
+GET {{baseUrl}}/admin/status
+Authorization: Bearer {{authToken}}
+
+### Scale cluster to specific size
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "desiredCount": 1
+}
+
+### Try to scale cluster without auth (should fail)
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+
+{
+    "desiredCount": 1
+}
+
+### Try to scale cluster with invalid count (below min) (should fail)
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "desiredCount": -1
+}
+
+### Try to scale cluster with invalid count (above max) (should fail)
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "desiredCount": 11
+}
+
+### Try to scale cluster with non-numeric value (should fail)
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "desiredCount": "three"
+}
+
+### Try to scale cluster with missing desiredCount (should fail)
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+}
+
+### Scale cluster down to minimum size
+POST {{baseUrl}}/admin/scale
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "desiredCount": 0
+}
+
+### Get cluster status after scaling (to verify)
+GET {{baseUrl}}/admin/status
+Authorization: Bearer {{authToken}}
+
+### Force redeploy of service
+POST {{baseUrl}}/admin/redeploy
+Authorization: Bearer {{authToken}}
+
+### Get status after redeployment initiation
+GET {{baseUrl}}/admin/status
+Authorization: Bearer {{authToken}}
+
+### USER MANAGEMENT
+# Note: These endpoints require admin privileges
+
+### Get all users
+GET {{baseUrl}}/users
+Authorization: Bearer {{authToken}}
+
+### Create a new user (as admin)
+# @name createUser
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "email": "newuser@example.com",
+    "password": "securepassword123",
+    "roles": ["ADMIN"]
+}
+
+### Store the created user ID
+@userId = {{createUser.response.body.id}}
+
+### Get specific user by ID
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### Update user roles
+PUT {{baseUrl}}/users/{{userId}}/roles
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "roles": []
+}
+
+### Update user password
+PUT {{baseUrl}}/users/{{userId}}/password
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "password": "newSecurePassword123"
+}
+
+### Delete user
+DELETE {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### Verify user was deleted (should return 404)
+GET {{baseUrl}}/users/{{userId}}
+Authorization: Bearer {{authToken}}
+
+### Create multiple users for listing
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "email": "user1@example.com",
+    "password": "securepassword123",
+    "roles": []
+}
+
+###
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "email": "user2@example.com",
+    "password": "securepassword123",
+    "roles": ["ADMIN"]
+}
+
+### Get updated user list
+GET {{baseUrl}}/users
 Authorization: Bearer {{authToken}}

@@ -7,7 +7,7 @@ import { userIsAdmin } from '../auth/utils';
 import { NotFoundException, UnauthorizedException } from '../exceptions';
 require('express-async-errors');
 
-const notes = express.Router();
+export const router = express.Router();
 
 // Input validation schemas
 const createNoteSchema = z.object({
@@ -20,7 +20,7 @@ const updateNoteSchema = z.object({
 });
 
 /** Get all notes for the user, or all notes if admin */
-notes.get(
+router.get(
   '/',
   passport.authenticate('jwt', { session: false }),
   async (req, res) => {
@@ -45,7 +45,7 @@ notes.get(
 );
 
 /** Get all notes for a specific polygon*/
-notes.get(
+router.get(
   '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
   passport.authenticate('jwt', { session: false }),
@@ -76,7 +76,7 @@ notes.get(
 );
 
 /** Create a new note for the given polygon ID */
-notes.post(
+router.post(
   '/',
   processRequest({
     body: createNoteSchema,
@@ -118,7 +118,7 @@ notes.post(
 );
 
 /** Update a note by note ID */
-notes.put(
+router.put(
   '/:id',
   processRequest({
     body: updateNoteSchema,
@@ -157,7 +157,7 @@ notes.put(
 );
 
 /** Delete a note by note ID */
-notes.delete(
+router.delete(
   '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
   passport.authenticate('jwt', { session: false }),
@@ -186,5 +186,3 @@ notes.delete(
     res.status(204).send();
   },
 );
-
-export default notes;
