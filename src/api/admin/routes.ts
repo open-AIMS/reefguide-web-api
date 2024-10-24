@@ -1,6 +1,6 @@
 import express, { Response } from 'express';
 import { passport } from '../auth/passportConfig';
-import { userIsAdminMiddleware } from '../auth/utils';
+import { assertUserIsAdminMiddleware } from '../auth/utils';
 import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
 import {
@@ -62,7 +62,7 @@ export type GetClusterCountResponse = z.infer<
 router.post(
   '/scale',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   processRequest({
     body: PostScaleClusterInputSchema,
   }),
@@ -91,7 +91,7 @@ router.post(
 router.get(
   '/status',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   async (req, res: Response<GetClusterCountResponse>) => {
     try {
       const command = new DescribeServicesCommand({
@@ -150,7 +150,7 @@ router.get(
 router.post(
   '/redeploy',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   async (req, res) => {
     try {
       const command = new UpdateServiceCommand({

@@ -22,7 +22,7 @@ import {
 import { registerUser } from '../services/auth';
 
 require('express-async-errors');
-const router = express.Router();
+export const router = express.Router();
 
 /**
  * Register a new user
@@ -135,5 +135,3 @@ router.get(
     res.json({ user: req.user });
   },
 );
-
-export default router;

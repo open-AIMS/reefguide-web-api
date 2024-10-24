@@ -119,7 +119,16 @@ export const isRefreshTokenValid = (refreshToken: RefreshToken): boolean => {
   return true;
 };
 
-export const userIsAdminMiddleware = (
+/**
+ * Checks that the user is an admin (ADMIN role)
+ *
+ * NOTE: must be ran after the passport auth middleware (so that req.user is
+ * populated)
+ * @param req Express req
+ * @param res Express res
+ * @param next next function
+ */
+export const assertUserIsAdminMiddleware = (
   req: Express.Request,
   res: Express.Response,
   next: NextFunction,

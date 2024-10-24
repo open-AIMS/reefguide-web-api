@@ -8,7 +8,7 @@ import { NotFoundException, UnauthorizedException } from '../exceptions';
 import { GeoJSONPolygonSchema } from '../../interfaces/GeoJSON';
 require('express-async-errors');
 
-const polygons = express.Router();
+export const router = express.Router();
 
 // Input validation schemas
 const createPolygonSchema = z.object({
@@ -20,7 +20,7 @@ const updatePolygonSchema = z.object({
 });
 
 /** Get a specific polygon by ID */
-polygons.get(
+router.get(
   '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
   passport.authenticate('jwt', { session: false }),
@@ -48,7 +48,7 @@ polygons.get(
 );
 
 /** Get all polygons for user, or all if admin */
-polygons.get(
+router.get(
   '/',
   passport.authenticate('jwt', { session: false }),
   async (req, res) => {
@@ -70,7 +70,7 @@ polygons.get(
 );
 
 /** Create a new Polygon */
-polygons.post(
+router.post(
   '/',
   processRequest({
     body: createPolygonSchema,
@@ -94,7 +94,7 @@ polygons.post(
 );
 
 /** Update a Polygon */
-polygons.put(
+router.put(
   '/:id',
   processRequest({
     params: z.object({ id: z.string() }),
@@ -132,7 +132,7 @@ polygons.put(
 );
 
 /** Delete a Polygon */
-polygons.delete(
+router.delete(
   '/:id',
   processRequest({ params: z.object({ id: z.string() }) }),
   passport.authenticate('jwt', { session: false }),
@@ -161,5 +161,3 @@ polygons.delete(
     res.status(204).send();
   },
 );
-
-export default polygons;

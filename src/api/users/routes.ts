@@ -3,7 +3,7 @@ import express, { Response } from 'express';
 import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
 import { passport } from '../auth/passportConfig';
-import { userIsAdminMiddleware } from '../auth/utils';
+import { assertUserIsAdminMiddleware } from '../auth/utils';
 import { InternalServerError, NotFoundException } from '../exceptions';
 
 require('express-async-errors');
@@ -40,7 +40,7 @@ const CreateUserSchema = z.object({
 router.get(
   '/',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   async (req, res: Response<UserResponse[]>) => {
     try {
       const users = await prisma.user.findMany({
@@ -63,7 +63,7 @@ router.get(
 router.get(
   '/:id',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   processRequest({ params: z.object({ id: z.string() }) }),
   async (req, res: Response<UserResponse>) => {
     const userId = parseInt(req.params.id);
@@ -96,7 +96,7 @@ router.get(
 router.post(
   '/',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   processRequest({
     body: CreateUserSchema,
   }),
@@ -114,7 +114,7 @@ router.post(
 router.put(
   '/:id/roles',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   processRequest({
     body: UpdateUserRolesSchema,
     params: z.object({ id: z.string() }),
@@ -147,7 +147,7 @@ router.put(
 router.put(
   '/:id/password',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   processRequest({
     body: UpdateUserPasswordSchema,
   }),
@@ -166,7 +166,7 @@ router.put(
 router.delete(
   '/:id',
   passport.authenticate('jwt', { session: false }),
-  userIsAdminMiddleware,
+  assertUserIsAdminMiddleware,
   async (req, res) => {
     const userId = parseInt(req.params.id);
 
