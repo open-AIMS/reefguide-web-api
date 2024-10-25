@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
 import { passport } from '../auth/passportConfig';
 import { assertUserIsAdminMiddleware } from '../auth/utils';
-import { InternalServerError, NotFoundException } from '../exceptions';
+import { handlePrismaError, NotFoundException } from '../exceptions';
 
 require('express-async-errors');
 export const router = express.Router();
@@ -52,7 +52,7 @@ router.get(
       });
       res.json(users);
     } catch (error) {
-      throw new InternalServerError('Failed to fetch users');
+      handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -85,7 +85,7 @@ router.get(
       res.json(user);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerError('Failed to fetch user');
+      handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -136,7 +136,7 @@ router.put(
 
       res.json(user);
     } catch (error) {
-      throw new InternalServerError('Failed to update user roles');
+      handlePrismaError(error, 'Failed to update user roles.');
     }
   },
 );
@@ -156,7 +156,7 @@ router.put(
     const { password } = req.body;
 
     await changePassword({ id: userId, password });
-    res.sendStatus(200);
+    res.status(200).send();
   },
 );
 
@@ -175,9 +175,9 @@ router.delete(
         where: { id: userId },
       });
 
-      res.sendStatus(204);
+      res.status(204).send();
     } catch (error) {
-      throw new InternalServerError('Failed to delete user');
+      handlePrismaError(error, 'Failed to delete user.');
     }
   },
 );

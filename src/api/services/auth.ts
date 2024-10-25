@@ -13,7 +13,6 @@ export async function hashPassword(password: string): Promise<string> {
   return bcryptjs.hash(password, 10);
 }
 
-
 /**
  * Registers a new user, email must be unique.
  * @param email The user email
@@ -79,6 +78,7 @@ export async function changePassword({
   } catch (error) {
     throw new BadRequestException(
       `Failed to change password of user with id ${id}.`,
+      error as Error,
     );
   }
 }

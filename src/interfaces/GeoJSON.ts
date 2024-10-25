@@ -17,7 +17,7 @@ export const GeoJSONLinearRingSchema = z
   .array(GeoJSONCoordinatePairSchema)
   .min(4)
   .refine(
-    (coords) =>
+    coords =>
       coords[0][0] === coords[coords.length - 1][0] &&
       coords[0][1] === coords[coords.length - 1][1],
     {
