@@ -4,10 +4,7 @@ import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
 import { passport } from '../auth/passportConfig';
 import { assertUserIsAdminMiddleware } from '../auth/utils';
-import {
-  handlePrismaError,
-  NotFoundException,
-} from '../exceptions';
+import { handlePrismaError, NotFoundException } from '../exceptions';
 
 require('express-async-errors');
 export const router = express.Router();
