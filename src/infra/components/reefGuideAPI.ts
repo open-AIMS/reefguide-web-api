@@ -306,7 +306,9 @@ export class ReefGuideAPI extends Construct {
 
     // Allow SSM connection
     efsManagementRole.addManagedPolicy(
-      iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
+      iam.ManagedPolicy.fromAwsManagedPolicyName(
+        'AmazonSSMManagedInstanceCore',
+      ),
     );
 
     // Allow EFS operations

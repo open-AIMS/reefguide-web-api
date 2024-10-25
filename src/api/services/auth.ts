@@ -13,7 +13,6 @@ export async function hashPassword(password: string): Promise<string> {
   return bcryptjs.hash(password, 10);
 }
 
-
 /**
  * Registers a new user, email must be unique.
  * @param email The user email

@@ -9,7 +9,9 @@ const envSchema = z.object({
   JWT_PUBLIC_KEY: z.string(),
   JWT_KEY_ID: z.string(),
   API_DOMAIN: z.string().url(),
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url(),
   AWS_REGION: z.string(),

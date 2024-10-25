@@ -156,7 +156,7 @@ router.put(
     const { password } = req.body;
 
     await changePassword({ id: userId, password });
-    res.sendStatus(200);
+    res.status(200).send();
   },
 );
 
@@ -175,7 +175,7 @@ router.delete(
         where: { id: userId },
       });
 
-      res.sendStatus(204);
+      res.status(204);
     } catch (error) {
       throw new InternalServerError('Failed to delete user');
     }

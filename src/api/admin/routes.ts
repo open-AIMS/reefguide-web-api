@@ -75,7 +75,7 @@ router.post(
         desiredCount,
       });
       await ecsClient.send(command);
-      res.sendStatus(200);
+      res.status(200).send();
     } catch (error) {
       throw new InternalServerError(
         'Failed to scale ECS service. Error: ' + error,
@@ -109,7 +109,7 @@ router.get(
 
       // Transform deployments data
       const deployments =
-        service.deployments?.map((deployment) => ({
+        service.deployments?.map(deployment => ({
           status: deployment.status || 'UNKNOWN',
           taskDefinition: deployment.taskDefinition || 'UNKNOWN',
           desiredCount: deployment.desiredCount,
@@ -122,7 +122,7 @@ router.get(
 
       // Transform events data
       const events =
-        service.events?.slice(0, 5).map((event) => ({
+        service.events?.slice(0, 5).map(event => ({
           createdAt: event.createdAt || new Date(),
           message: event.message || '',
         })) || [];
@@ -168,7 +168,7 @@ router.post(
       });
 
       await ecsClient.send(command);
-      res.sendStatus(200);
+      res.status(200).send();
     } catch (error) {
       throw new InternalServerError(
         'Failed to initiate redeployment. Error ' + error,
