@@ -79,7 +79,7 @@ router.post(
     } catch (error) {
       throw new InternalServerError(
         'Failed to scale ECS service. Error: ' + error,
-        error as Error
+        error as Error,
       );
     }
   },
@@ -143,7 +143,7 @@ router.get(
     } catch (error) {
       throw new InternalServerError(
         'Failed to describe ECS service. Error: ' + error,
-        error as Error
+        error as Error,
       );
     }
   },
@@ -174,7 +174,7 @@ router.post(
     } catch (error) {
       throw new InternalServerError(
         'Failed to initiate redeployment. Error ' + error,
-        error as Error
+        error as Error,
       );
     }
   },
