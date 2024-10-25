@@ -8,20 +8,20 @@ import { ErrorResponse } from '../interfaces/Errors';
  */
 export function errorMiddleware(
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ) {
   if (process.env.TEST_MODE !== 'true') {
     console.error('Error details:');
-
+    
     // Log the complete error chain
     let currentError: Error | undefined = err;
     while (currentError) {
       console.error(`\nError: ${currentError.name}`);
       console.error(`Message: ${currentError.message}`);
       console.error('Stack:', currentError.stack);
-
+      
       // Move to the cause if it exists
       currentError = (currentError as any).cause;
       if (currentError) {

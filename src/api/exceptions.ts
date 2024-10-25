@@ -10,6 +10,7 @@ import {
  */
 export class BaseApiException extends Error {
   statusCode: number;
+
   cause?: Error;
 
   constructor(

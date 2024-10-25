@@ -6,7 +6,6 @@ import { passport } from '../auth/passportConfig';
 import { assertUserIsAdminMiddleware } from '../auth/utils';
 import {
   handlePrismaError,
-  InternalServerError,
   NotFoundException,
 } from '../exceptions';
 
@@ -56,7 +55,7 @@ router.get(
       });
       res.json(users);
     } catch (error) {
-      throw handlePrismaError(error, 'Failed to fetch users.');
+      handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -89,7 +88,7 @@ router.get(
       res.json(user);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw handlePrismaError(error, 'Failed to fetch users.');
+      handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -140,7 +139,7 @@ router.put(
 
       res.json(user);
     } catch (error) {
-      throw handlePrismaError(error, 'Failed to update user roles.');
+      handlePrismaError(error, 'Failed to update user roles.');
     }
   },
 );
@@ -181,7 +180,7 @@ router.delete(
 
       res.status(204).send();
     } catch (error) {
-      throw handlePrismaError(error, 'Failed to delete user.');
+      handlePrismaError(error, 'Failed to delete user.');
     }
   },
 );
