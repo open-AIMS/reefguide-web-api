@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
 import { passport } from '../auth/passportConfig';
 import { assertUserIsAdminMiddleware } from '../auth/utils';
-import { InternalServerError, NotFoundException } from '../exceptions';
+import {
+  handlePrismaError,
+  InternalServerError,
+  NotFoundException,
+} from '../exceptions';
 
 require('express-async-errors');
 export const router = express.Router();
@@ -52,7 +56,7 @@ router.get(
       });
       res.json(users);
     } catch (error) {
-      throw new InternalServerError('Failed to fetch users');
+      throw handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -85,7 +89,7 @@ router.get(
       res.json(user);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerError('Failed to fetch user');
+      throw handlePrismaError(error, 'Failed to fetch users.');
     }
   },
 );
@@ -136,7 +140,7 @@ router.put(
 
       res.json(user);
     } catch (error) {
-      throw new InternalServerError('Failed to update user roles');
+      throw handlePrismaError(error, 'Failed to update user roles.');
     }
   },
 );
@@ -175,9 +179,9 @@ router.delete(
         where: { id: userId },
       });
 
-      res.status(204);
+      res.status(204).send();
     } catch (error) {
-      throw new InternalServerError('Failed to delete user');
+      throw handlePrismaError(error, 'Failed to delete user.');
     }
   },
 );

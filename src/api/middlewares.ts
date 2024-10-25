@@ -8,16 +8,26 @@ import { ErrorResponse } from '../interfaces/Errors';
  */
 export function errorMiddleware(
   err: Error,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction,
 ) {
-  // Only print out logs for errors if not testing
   if (process.env.TEST_MODE !== 'true') {
-    console.error(err);
-    console.error(err.stack ?? 'No stack trace available.');
+    console.error('Error details:');
+    
+    // Log the complete error chain
+    let currentError: Error | undefined = err;
+    while (currentError) {
+      console.error(`\nError: ${currentError.name}`);
+      console.error(`Message: ${currentError.message}`);
+      console.error('Stack:', currentError.stack);
+      
+      // Move to the cause if it exists
+      currentError = (currentError as any).cause;
+      if (currentError) {
+        console.error('\nCaused by:');
+      }
+    }
   }
 
   let statusCode = 500;

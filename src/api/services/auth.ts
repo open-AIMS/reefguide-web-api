@@ -78,6 +78,7 @@ export async function changePassword({
   } catch (error) {
     throw new BadRequestException(
       `Failed to change password of user with id ${id}.`,
+      error as Error,
     );
   }
 }
