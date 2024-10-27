@@ -45,6 +45,12 @@ export class ReefGuideFrontend extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       errorResponses: [
         {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+          ttl: cdk.Duration.seconds(300),
+        },
+        {
           httpStatus: 404,
           responseHttpStatus: 200,
           ttl: cdk.Duration.seconds(300),

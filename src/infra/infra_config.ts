@@ -25,18 +25,20 @@ export const ReefGuideAPIConfigSchema = z.object({
   memory: z.number().int().positive(),
   /** Auto scaling configuration for the reefGuide service */
   autoScaling: z.object({
+    // Is auto scaling enabled?
+    enabled: z.boolean().default(false),
     /** The minimum number of tasks to run */
-    minCapacity: z.number().int().positive(),
+    minCapacity: z.number().int().positive().default(1),
     /** The maximum number of tasks that can be run */
-    maxCapacity: z.number().int().positive(),
+    maxCapacity: z.number().int().positive().default(3),
     /** The target CPU utilization percentage for scaling */
-    targetCpuUtilization: z.number().min(0).max(100),
+    targetCpuUtilization: z.number().min(0).max(100).default(70),
     /** The target memory utilization percentage for scaling */
-    targetMemoryUtilization: z.number().min(0).max(100),
+    targetMemoryUtilization: z.number().min(0).max(100).default(95),
     /** The cooldown period (in seconds) before allowing another scale in action */
-    scaleInCooldown: z.number().int().nonnegative(),
+    scaleInCooldown: z.number().int().nonnegative().default(300),
     /** The cooldown period (in seconds) before allowing another scale out action */
-    scaleOutCooldown: z.number().int().nonnegative(),
+    scaleOutCooldown: z.number().int().nonnegative().default(150),
   }),
 });
 export type ReefGuideAPIConfig = z.infer<typeof ReefGuideAPIConfigSchema>;

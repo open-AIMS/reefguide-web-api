@@ -183,7 +183,7 @@ export class ReefGuideAPI extends Construct {
       securityGroups: [serviceSecurityGroup],
       assignPublicIp: true, // TODO Change this if using private subnets with NAT
       // give plenty of time
-      healthCheckGracePeriod: Duration.minutes(10),
+      healthCheckGracePeriod: Duration.minutes(15),
     });
 
     // Allow Fargate instance to access EFS
@@ -203,8 +203,8 @@ export class ReefGuideAPI extends Construct {
         protocol: elb.Protocol.HTTP,
         healthyThresholdCount: 2,
         unhealthyThresholdCount: 5,
-        interval: Duration.seconds(10),
-        timeout: Duration.seconds(5),
+        interval: Duration.seconds(60),
+        timeout: Duration.seconds(30),
         port: this.internalPort.toString(),
         path: '/',
       },
@@ -230,34 +230,36 @@ export class ReefGuideAPI extends Construct {
     // AUTO SCALING SETUP
     // ==================
 
-    // ECS Auto Scaling
-    const scaling = this.fargateService.autoScaleTaskCount({
-      minCapacity: props.config.autoScaling.minCapacity,
-      maxCapacity: props.config.autoScaling.maxCapacity,
-    });
+    if (props.config.autoScaling.enabled) {
+      // ECS Auto Scaling
+      const scaling = this.fargateService.autoScaleTaskCount({
+        minCapacity: props.config.autoScaling.minCapacity,
+        maxCapacity: props.config.autoScaling.maxCapacity,
+      });
 
-    // Configure CPU utilization based auto scaling
-    scaling.scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: props.config.autoScaling.targetCpuUtilization,
-      scaleInCooldown: Duration.seconds(
-        props.config.autoScaling.scaleInCooldown,
-      ),
-      scaleOutCooldown: Duration.seconds(
-        props.config.autoScaling.scaleOutCooldown,
-      ),
-    });
+      // Configure CPU utilization based auto scaling
+      scaling.scaleOnCpuUtilization('CpuScaling', {
+        targetUtilizationPercent: props.config.autoScaling.targetCpuUtilization,
+        scaleInCooldown: Duration.seconds(
+          props.config.autoScaling.scaleInCooldown,
+        ),
+        scaleOutCooldown: Duration.seconds(
+          props.config.autoScaling.scaleOutCooldown,
+        ),
+      });
 
-    // Configure memory utilization based auto scaling
-    scaling.scaleOnMemoryUtilization('MemoryScaling', {
-      targetUtilizationPercent:
-        props.config.autoScaling.targetMemoryUtilization,
-      scaleInCooldown: Duration.seconds(
-        props.config.autoScaling.scaleInCooldown,
-      ),
-      scaleOutCooldown: Duration.seconds(
-        props.config.autoScaling.scaleOutCooldown,
-      ),
-    });
+      // Configure memory utilization based auto scaling
+      scaling.scaleOnMemoryUtilization('MemoryScaling', {
+        targetUtilizationPercent:
+          props.config.autoScaling.targetMemoryUtilization,
+        scaleInCooldown: Duration.seconds(
+          props.config.autoScaling.scaleInCooldown,
+        ),
+        scaleOutCooldown: Duration.seconds(
+          props.config.autoScaling.scaleOutCooldown,
+        ),
+      });
+    }
 
     // DNS ROUTES
     // ===========
