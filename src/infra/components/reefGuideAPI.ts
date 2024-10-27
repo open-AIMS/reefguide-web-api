@@ -206,7 +206,7 @@ export class ReefGuideAPI extends Construct {
         interval: Duration.seconds(60),
         timeout: Duration.seconds(30),
         port: this.internalPort.toString(),
-        path: '/',
+        path: '/health',
       },
       vpc: props.vpc,
       // Add stickiness configuration - this means the LB will preferentially
