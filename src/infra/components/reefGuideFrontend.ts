@@ -19,8 +19,8 @@ export interface ReefGuideFrontendProps {
   usEastCertificate: acm.ICertificate;
   /** The configuration object for the ReefGuideFrontend service */
   config: ReefGuideFrontendConfig;
-  /** CSP endpoints */
-  cspEndpoints: string[];
+  /** CSP entries and endpoints */
+  cspEntries: string[];
 }
 
 /**
@@ -61,8 +61,7 @@ export class ReefGuideFrontend extends Construct {
       securityHeadersBehavior: {
         contentSecurityPolicy: {
           // enable connection to the various API services needed
-          // App may generate blob object URLs
-          contentSecurityPolicy: `connect-src 'self' blob: ${props.cspEndpoints.join(
+          contentSecurityPolicy: `connect-src 'self' ${props.cspEntries.join(
             ' ',
           )}`,
           override: true,

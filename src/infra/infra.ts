@@ -104,7 +104,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
       domainName: domains.frontend,
       hz: hz,
       // This overrides CSP to allow the browser to use these endpoints
-      cspEndpoints: [reefGuideApi.endpoint, webAPI.endpoint].concat(
+      // App may generate blob object URLs.
+      cspEntries: [reefGuideApi.endpoint, webAPI.endpoint, 'blob:'].concat(
         ARC_GIS_ENDPOINTS,
       ),
     });
