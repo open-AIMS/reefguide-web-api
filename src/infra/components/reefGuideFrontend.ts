@@ -61,7 +61,8 @@ export class ReefGuideFrontend extends Construct {
       securityHeadersBehavior: {
         contentSecurityPolicy: {
           // enable connection to the various API services needed
-          contentSecurityPolicy: `connect-src 'self' ${props.cspEndpoints.join(
+          // App may generate blob object URLs
+          contentSecurityPolicy: `connect-src 'self' blob: ${props.cspEndpoints.join(
             ' ',
           )}`,
           override: true,
