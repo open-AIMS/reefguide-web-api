@@ -14,14 +14,8 @@ export interface ReefguideWebApiProps extends cdk.StackProps {
 
 // All of these endpoints need to be added to CSP for front-end
 const ARC_GIS_ENDPOINTS = [
-  'https://js.arcgis.com',
-  'https://www.arcgis.com',
-  'https://static.arcgis.com',
-  'https://basemaps.arcgis.com',
-  'https://cdn.arcgis.com',
-  'https://server.arcgisonline.com',
-  'https://services.arcgisonline.com',
-  'https://tiles.arcgis.com',
+  'https://*.arcgis.com',
+  'https://*.arcgisonline.com',
 ];
 
 export class ReefguideWebApiStack extends cdk.Stack {
@@ -110,7 +104,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
       domainName: domains.frontend,
       hz: hz,
       // This overrides CSP to allow the browser to use these endpoints
-      cspEndpoints: [reefGuideApi.endpoint, webAPI.endpoint].concat(
+      // App may generate blob object URLs.
+      cspEntries: [reefGuideApi.endpoint, webAPI.endpoint, 'blob:'].concat(
         ARC_GIS_ENDPOINTS,
       ),
     });
