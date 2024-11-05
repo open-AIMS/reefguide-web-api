@@ -171,6 +171,32 @@ export class ReefGuideAPI extends Construct {
       vpc: props.vpc,
     });
 
+    // Create Security Group for the Fargate service
+    const serviceSecurityGroup = new ec2.SecurityGroup(this, 'reef-guide-sg', {
+      vpc: props.vpc,
+      allowAllOutbound: true,
+      description: 'Security group for reef guide Fargate service',
+    });
+
+    // Create Fargate Service
+    this.fargateService = new ecs.FargateService(this, 'reefguide-service', {
+      cluster: cluster,
+      taskDefinition: reefGuideTaskDfn,
+      // TODO Update if we need to
+      desiredCount: 1,
+      securityGroups: [serviceSecurityGroup],
+      assignPublicIp: true, // TODO Change this if using private subnets with NAT
+      // give plenty of time
+      healthCheckGracePeriod: Duration.minutes(15),
+    });
+
+    // Allow Fargate instance to access EFS
+    fileSystem.connections.allowDefaultPortFrom(this.fargateService);
+
+    // ========
+    // ALERTING
+    // ========
+
     // Do we want memory alerting?
     if (!!props.config.memoryAlerting) {
       const alertConfig = props.config.memoryAlerting;
@@ -206,28 +232,6 @@ export class ReefGuideAPI extends Construct {
       // Add SNS action to alarm
       memoryAlarm.addAlarmAction(new actions.SnsAction(alertTopic));
     }
-
-    // Create Security Group for the Fargate service
-    const serviceSecurityGroup = new ec2.SecurityGroup(this, 'reef-guide-sg', {
-      vpc: props.vpc,
-      allowAllOutbound: true,
-      description: 'Security group for reef guide Fargate service',
-    });
-
-    // Create Fargate Service
-    this.fargateService = new ecs.FargateService(this, 'reefguide-service', {
-      cluster: cluster,
-      taskDefinition: reefGuideTaskDfn,
-      // TODO Update if we need to
-      desiredCount: 1,
-      securityGroups: [serviceSecurityGroup],
-      assignPublicIp: true, // TODO Change this if using private subnets with NAT
-      // give plenty of time
-      healthCheckGracePeriod: Duration.minutes(15),
-    });
-
-    // Allow Fargate instance to access EFS
-    fileSystem.connections.allowDefaultPortFrom(this.fargateService);
 
     // LOAD BALANCING SETUP
     // =========================
