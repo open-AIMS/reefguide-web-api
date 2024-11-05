@@ -55,14 +55,27 @@ jobs:
           aws-region: ${{ steps.cdk-config-setup.outputs.aws-region }}
       - id: install-aws-cli
         uses: unfor19/install-aws-cli-action@v1
-      - run: aws sts get-caller-identity
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup node cache
+        id: node-cache
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: npm-${{ hashFiles('package-lock.json') }}-${{ hashFiles('package.json') }}
+          restore-keys: npm-
+
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm i
+
       - name: Install dependencies and run CDK deploy
         run: |
-          npm install
           export CONFIG_FILE_NAME=${{ vars.CDK_DEPLOY_ENVIRONMENT }}.json
           if [ "${{ github.event.inputs.action }}" = "deploy" ]; then
             npx cdk deploy --require-approval never
