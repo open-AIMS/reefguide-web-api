@@ -1,3 +1,4 @@
+# acknowledging reuse from OSS https://github.com/FAIMS/FAIMS3
 name: "CDK Config"
 description: "Pull CDK configuration into CDK context and output AWS details. Requires an already cloned github repo!"
 inputs:
