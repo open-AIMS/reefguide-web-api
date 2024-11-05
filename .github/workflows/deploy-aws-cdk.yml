@@ -3,9 +3,6 @@ name: CDK Deploy reef guide web API to AWS
 on:
   # Manually run deploy
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   id-token: write
