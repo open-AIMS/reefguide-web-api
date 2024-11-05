@@ -48,7 +48,9 @@ export const ReefGuideAPIConfigSchema = z.object({
         .string()
         .email('Must provide a valid email address as email alert target.'),
       /** Memory threshold percentage (0-100) */
-      memoryThresholdPercent: z.number().min(0).max(100).default(85),
+      averageThreshold: z.number().min(0).max(100).default(85),
+      /** Memory threshold percentage (0-100) */
+      maxThreshold: z.number().min(0).max(100).default(95),
       /** Number of consecutive evaluation periods that must breach the
        * threshold before alerting */
       evaluationPeriods: z.number().positive().default(2),

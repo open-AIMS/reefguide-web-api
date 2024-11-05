@@ -38,6 +38,7 @@
     "memoryAlerting": {
       "emailAddress": "alerts@example.com",
       "memoryThresholdPercent": 75,
+      "maxMemoryThresholdPercent": 95,
       "evaluationPeriods": 2,
       "metricPeriod": 60
     }

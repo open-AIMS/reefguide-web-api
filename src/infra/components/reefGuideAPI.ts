@@ -211,26 +211,56 @@ export class ReefGuideAPI extends Construct {
         new subscriptions.EmailSubscription(alertConfig.emailAddress),
       );
 
-      // Create CloudWatch alarm for memory utilization
-      const memoryMetric = this.fargateService.metricMemoryUtilization({
+      // Create base memory metric
+      const baseMemoryMetric = this.fargateService.metricMemoryUtilization({
         period: Duration.seconds(alertConfig.metricPeriod),
+      });
+
+      // Create average memory alarm
+      const avgMemoryMetric = baseMemoryMetric.with({
         statistic: 'Average',
       });
 
-      const memoryAlarm = new cloudwatch.Alarm(this, 'MemoryUtilizationAlarm', {
-        metric: memoryMetric,
-        threshold: alertConfig.memoryThresholdPercent,
-        evaluationPeriods: alertConfig.evaluationPeriods,
-        comparisonOperator:
-          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-        actionsEnabled: true,
-        alarmDescription: `Memory utilization exceeded ${
-          alertConfig.memoryThresholdPercent
-        }% for ${alertConfig.evaluationPeriods} periods`,
+      const avgMemoryAlarm = new cloudwatch.Alarm(
+        this,
+        'AvgMemoryUtilizationAlarm',
+        {
+          metric: avgMemoryMetric,
+          threshold: alertConfig.averageThreshold,
+          evaluationPeriods: alertConfig.evaluationPeriods,
+          comparisonOperator:
+            cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+          actionsEnabled: true,
+          alarmDescription: `Average memory utilization exceeded ${
+            alertConfig.averageThreshold
+          }% for ${alertConfig.evaluationPeriods} periods`,
+        },
+      );
+
+      // Create maximum memory alarm
+      const maxMemoryMetric = baseMemoryMetric.with({
+        statistic: 'Maximum',
       });
 
-      // Add SNS action to alarm
-      memoryAlarm.addAlarmAction(new actions.SnsAction(alertTopic));
+      const maxMemoryAlarm = new cloudwatch.Alarm(
+        this,
+        'MaxMemoryUtilizationAlarm',
+        {
+          metric: maxMemoryMetric,
+          threshold: alertConfig.maxThreshold,
+          evaluationPeriods: alertConfig.evaluationPeriods,
+          comparisonOperator:
+            cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+          actionsEnabled: true,
+          alarmDescription: `Maximum memory utilization exceeded ${
+            alertConfig.maxThreshold
+          }% for ${alertConfig.evaluationPeriods} periods`,
+        },
+      );
+
+      // Add SNS actions to both alarms
+      avgMemoryAlarm.addAlarmAction(new actions.SnsAction(alertTopic));
+      maxMemoryAlarm.addAlarmAction(new actions.SnsAction(alertTopic));
     }
 
     // LOAD BALANCING SETUP
