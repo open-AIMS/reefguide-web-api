@@ -40,6 +40,24 @@ export const ReefGuideAPIConfigSchema = z.object({
     /** The cooldown period (in seconds) before allowing another scale out action */
     scaleOutCooldown: z.number().int().nonnegative().default(150),
   }),
+  // Optional memory alerting - include configuration if desired
+  memoryAlerting: z
+    .object({
+      /** Email address to send notifications to */
+      emailAddress: z
+        .string()
+        .email('Must provide a valid email address as email alert target.'),
+      /** Memory threshold percentage (0-100) */
+      averageThreshold: z.number().min(0).max(100).default(85),
+      /** Memory threshold percentage (0-100) */
+      maxThreshold: z.number().min(0).max(100).default(95),
+      /** Number of consecutive evaluation periods that must breach the
+       * threshold before alerting */
+      evaluationPeriods: z.number().positive().default(2),
+      /** Period in seconds over which to calculate the average */
+      metricPeriod: z.number().positive().default(60),
+    })
+    .optional(),
 });
 export type ReefGuideAPIConfig = z.infer<typeof ReefGuideAPIConfigSchema>;
 
