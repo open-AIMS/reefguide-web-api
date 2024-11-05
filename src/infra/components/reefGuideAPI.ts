@@ -1,5 +1,7 @@
 import { CfnOutput, Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as efs from 'aws-cdk-lib/aws-efs';
@@ -9,6 +11,8 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as r53 from 'aws-cdk-lib/aws-route53';
 import * as r53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 import { ReefGuideAPIConfig } from '../infra_config';
 import { SharedBalancer } from './networking';
@@ -166,6 +170,42 @@ export class ReefGuideAPI extends Construct {
     const cluster = new ecs.Cluster(this, 'reef-guide-cluster', {
       vpc: props.vpc,
     });
+
+    // Do we want memory alerting?
+    if (!!props.config.memoryAlerting) {
+      const alertConfig = props.config.memoryAlerting;
+
+      // Create SNS topic for alerts
+      const alertTopic = new sns.Topic(this, 'MemoryAlertTopic', {
+        displayName: 'ReefGuide API Cluster Memory Alerts',
+      });
+
+      // Add email subscription
+      alertTopic.addSubscription(
+        new subscriptions.EmailSubscription(alertConfig.emailAddress),
+      );
+
+      // Create CloudWatch alarm for memory utilization
+      const memoryMetric = this.fargateService.metricMemoryUtilization({
+        period: Duration.seconds(alertConfig.metricPeriod),
+        statistic: 'Average',
+      });
+
+      const memoryAlarm = new cloudwatch.Alarm(this, 'MemoryUtilizationAlarm', {
+        metric: memoryMetric,
+        threshold: alertConfig.memoryThresholdPercent,
+        evaluationPeriods: alertConfig.evaluationPeriods,
+        comparisonOperator:
+          cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        actionsEnabled: true,
+        alarmDescription: `Memory utilization exceeded ${
+          alertConfig.memoryThresholdPercent
+        }% for ${alertConfig.evaluationPeriods} periods`,
+      });
+
+      // Add SNS action to alarm
+      memoryAlarm.addAlarmAction(new actions.SnsAction(alertTopic));
+    }
 
     // Create Security Group for the Fargate service
     const serviceSecurityGroup = new ec2.SecurityGroup(this, 'reef-guide-sg', {
