@@ -2,6 +2,9 @@ name: CDK Deploy reef guide web API to AWS
 on:
   # Manually run deploy
   workflow_dispatch:
+  push:
+    branches:
+      - cdk-deploy-cd
 
 permissions:
   id-token: write
@@ -54,4 +57,5 @@ jobs:
         run: |
           npm install
           export CONFIG_FILE_NAME=${{ vars.CDK_DEPLOY_ENVIRONMENT }}.json
-          npx cdk deploy --require-approval never
+          echo "not doing: npx cdk deploy --require-approval never"
+          npx cdk diff
