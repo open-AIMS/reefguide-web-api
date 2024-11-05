@@ -3,6 +3,15 @@ name: CDK Deploy reef guide web API to AWS
 on:
   # Manually run deploy
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose action to perform'
+        required: true
+        default: 'diff'
+        type: choice
+        options:
+          - deploy
+          - diff
 
 permissions:
   id-token: write
@@ -50,9 +59,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "20"
+          node-version: '20'
       - name: Install dependencies and run CDK deploy
         run: |
           npm install
           export CONFIG_FILE_NAME=${{ vars.CDK_DEPLOY_ENVIRONMENT }}.json
-          npx cdk deploy --require-approval never
+          if [ "${{ github.event.inputs.action }}" = "deploy" ]; then
+            npx cdk deploy --require-approval never
+          else
+            npx cdk diff
+          fi
