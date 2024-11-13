@@ -13,6 +13,7 @@ export class CapacityManager {
   }
 
   private async pollJobQueue() {
+    console.log('Poll...');
     try {
       const response = await axios.get(
         `${this.config.apiEndpoint}/api/jobs/poll`,
@@ -31,6 +32,8 @@ export class CapacityManager {
         },
         {},
       );
+
+      console.log(jobsByType);
 
       await this.adjustCapacity(jobsByType);
     } catch (error) {

@@ -22,7 +22,7 @@
     "aws-keys": "node scripts/awsKeys.js",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\"",
     "format:write": "prettier --write \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\"",
-    "start-manager": "node src/job-manager/src/index.ts"
+    "start-manager": "env-cmd -f src/job-manager/.env ts-node src/job-manager/src/index.ts"
   },
   "keywords": [],
   "author": "AIMS",
