@@ -21,13 +21,14 @@
     "local-keys": "node scripts/localKeys.js",
     "aws-keys": "node scripts/awsKeys.js",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\"",
-    "format:write": "prettier --write \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\""
+    "format:write": "prettier --write \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\"",
+    "start-manager": "node src/job-manager/src/index.ts"
   },
   "keywords": [],
   "author": "AIMS",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-ecs": "^3.677.0",
+    "@aws-sdk/client-ecs": "^3.687.0",
     "@aws-sdk/client-s3": "^3.689.0",
     "@aws-sdk/s3-request-presigner": "^3.689.0",
     "@cloudcomponents/cdk-static-website": "^2.2.0",
@@ -41,7 +42,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "env-cmd": "^10.1.0",
-    "express": "^4.19.2",
+    "express": "^4.21.1",
     "express-async-errors": "^3.1.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -78,9 +79,13 @@
     "prisma": "^5.22.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.2",
+    "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.3",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-node-externals": "^3.0.0",
     "zod-prisma-types": "^3.1.8"
   },
   "prisma": {
