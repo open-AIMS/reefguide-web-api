@@ -5,6 +5,7 @@ import { router as authRoutes } from './auth/routes';
 import { router as noteRoutes } from './notes/routes';
 import { router as polygonRoutes } from './polygons/routes';
 import { router as userRoutes } from './users/routes';
+import { router as jobRoutes } from './jobs/routes';
 
 require('express-async-errors');
 const router = express.Router();
@@ -29,5 +30,6 @@ router.use('/polygons', polygonRoutes);
 router.use('/notes', noteRoutes);
 router.use('/admin', adminRoutes);
 router.use('/users', userRoutes);
+router.use('/jobs', jobRoutes);
 
 export default router;
