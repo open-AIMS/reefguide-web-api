@@ -17,6 +17,9 @@ const envSchema = z.object({
   AWS_REGION: z.string(),
   ECS_CLUSTER_NAME: z.string(),
   ECS_SERVICE_NAME: z.string(),
+  S3_BUCKET_NAME: z.string(),
+  S3_URL_EXPIRY_SECONDS: z.number().default(3600),
+  S3_MAX_FILES: z.number().default(10),
 });
 
 /**
@@ -41,6 +44,11 @@ export interface Config {
       clusterName: string;
       serviceName: string;
     };
+  };
+  s3: {
+    bucketName: string;
+    urlExpirySeconds: number;
+    maxFiles: number;
   };
 }
 
@@ -77,6 +85,11 @@ export function getConfig(): Config {
         clusterName: env.ECS_CLUSTER_NAME,
         serviceName: env.ECS_SERVICE_NAME,
       },
+    },
+    s3: {
+      bucketName: env.S3_BUCKET_NAME,
+      maxFiles: env.S3_MAX_FILES,
+      urlExpirySeconds: env.S3_URL_EXPIRY_SECONDS,
     },
   };
 

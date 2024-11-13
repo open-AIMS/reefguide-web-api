@@ -28,6 +28,8 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.677.0",
+    "@aws-sdk/client-s3": "^3.689.0",
+    "@aws-sdk/s3-request-presigner": "^3.689.0",
     "@cloudcomponents/cdk-static-website": "^2.2.0",
     "@codegenie/serverless-express": "^4.15.0",
     "@prisma/client": "^5.22.0",

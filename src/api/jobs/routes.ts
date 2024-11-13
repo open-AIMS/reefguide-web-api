@@ -5,7 +5,9 @@ import { JobType, JobStatus, StorageScheme } from '@prisma/client';
 import { passport } from '../auth/passportConfig';
 import { JobService } from '../services/jobs';
 import { userIsAdmin } from '../auth/utils';
-import { UnauthorizedException } from '../exceptions';
+import { BadRequestException, UnauthorizedException } from '../exceptions';
+import { config } from '../config';
+import { S3StorageService } from '../services/s3Storage';
 require('express-async-errors');
 
 // Create DTOs for complex response types
@@ -81,11 +83,21 @@ export const jobDetailsResponseSchema = z.object({
   job: jobDetailsSchema,
 });
 
+const downloadResponseSchema = z.object({
+  job: z.object({
+    id: z.number(),
+    type: z.nativeEnum(JobType),
+    status: z.nativeEnum(JobStatus),
+  }),
+  files: z.record(z.string(), z.string()),
+});
+
 // Type inferencing from schemas
 export type CreateJobResponse = z.infer<typeof createJobResponseSchema>;
 export type PollJobsResponse = z.infer<typeof pollJobsResponseSchema>;
 export type AssignJobResponse = z.infer<typeof assignJobResponseSchema>;
 export type JobDetailsResponse = z.infer<typeof jobDetailsResponseSchema>;
+export type DownloadResponse = z.infer<typeof downloadResponseSchema>;
 
 // Routes
 router.post(
@@ -181,5 +193,61 @@ router.post(
       userIsAdmin(req.user),
     );
     res.json({ job });
+  },
+);
+
+router.get(
+  '/:id/download',
+  processRequest({
+    params: z.object({ id: z.string() }),
+    query: z.object({
+      expirySeconds: z.string().optional(),
+    }),
+  }),
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    if (!req.user) throw new UnauthorizedException();
+
+    const jobId = parseInt(req.params.id);
+    const expirySeconds = req.query.expirySeconds
+      ? parseInt(req.query.expirySeconds)
+      : config.s3.urlExpirySeconds;
+
+    // Get job details with assignments and results
+    const job = await jobService.getJobDetails(
+      jobId,
+      req.user.id,
+      userIsAdmin(req.user),
+    );
+
+    // Check if job has any results
+    if (
+      job.status !== JobStatus.SUCCEEDED ||
+      !job.assignments.some(a => a.result)
+    ) {
+      throw new BadRequestException('Job has no results to download');
+    }
+
+    // Get the successful assignment
+    const successfulAssignment = job.assignments.find(a => a.result);
+    if (!successfulAssignment) {
+      throw new BadRequestException('No successful assignment found');
+    }
+
+    // Get presigned URLs for all files in the result location
+    const s3Service = new S3StorageService(config.s3.bucketName);
+    const urlMap = await s3Service.getPresignedUrls(
+      successfulAssignment.storage_uri,
+      expirySeconds,
+    );
+
+    res.json({
+      job: {
+        id: job.id,
+        type: job.type,
+        status: job.status,
+      },
+      files: urlMap,
+    });
   },
 );
