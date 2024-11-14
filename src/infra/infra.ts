@@ -8,6 +8,7 @@ import { WebAPI } from './components/webAPI';
 import { DeploymentConfig } from './infra_config';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
+import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -25,6 +26,45 @@ export class ReefguideWebApiStack extends cdk.Stack {
 
     // Pull out main config
     const config = props.config;
+
+    // Manager service creds
+    const managerCreds = new sm.Secret(this, 'manager-creds', {
+      // {username, password}
+      generateSecretString: {
+        passwordLength: 16,
+        secretStringTemplate: JSON.stringify({
+          username: 'manager@service.com',
+        }),
+        generateStringKey: 'password',
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Worker service creds
+    const workerCreds = new sm.Secret(this, 'worker-creds', {
+      // {username, password}
+      generateSecretString: {
+        passwordLength: 16,
+        secretStringTemplate: JSON.stringify({
+          username: 'worker@service.com',
+        }),
+        generateStringKey: 'password',
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // Admin creds
+    const adminCreds = new sm.Secret(this, 'admin-creds', {
+      // {username, password}
+      generateSecretString: {
+        passwordLength: 16,
+        secretStringTemplate: JSON.stringify({
+          username: 'admin@service.com',
+        }),
+        generateStringKey: 'password',
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // DNS SETUP
     // =========
@@ -87,6 +127,9 @@ export class ReefguideWebApiStack extends cdk.Stack {
       config: config.webAPI,
       domainName: domains.webAPI,
       hz: hz,
+      managerCreds: managerCreds,
+      workerCreds: workerCreds,
+      adminCreds: adminCreds,
 
       // Expose the cluster information to web API so that it can control it
       ecsClusterName: cluster.clusterName,

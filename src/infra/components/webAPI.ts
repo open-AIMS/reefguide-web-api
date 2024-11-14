@@ -30,6 +30,10 @@ export interface WebAPIProps {
   ecsClusterName: string;
   /** The name of the ECS service which hosts the Julia compute nodes */
   ecsServiceName: string;
+  /** Creds to initialise for the manager and worker services */
+  managerCreds: sm.Secret;
+  workerCreds: sm.Secret;
+  adminCreds: sm.Secret;
 }
 
 /**
@@ -87,6 +91,9 @@ export class WebAPI extends Construct {
         PORT: String(this.internalPort),
         NODE_ENV: config.nodeEnv,
         API_SECRETS_ARN: config.apiSecretsArn,
+        WORKER_CREDS_ARN: props.workerCreds.secretArn,
+        MANAGER_CREDS_ARN: props.managerCreds.secretArn,
+        ADMIN_CREDS_ARN: props.adminCreds.secretArn,
         // Fully qualified domain for API domain - this defines the JWT iss
         API_DOMAIN: this.endpoint,
         ECS_CLUSTER_NAME: props.ecsClusterName,
@@ -108,6 +115,11 @@ export class WebAPI extends Construct {
 
     // allow read of db secrets
     dbSecret.grantRead(this.lambda);
+
+    // Initialisation creds
+    props.managerCreds.grantRead(this.lambda);
+    props.workerCreds.grantRead(this.lambda);
+    props.adminCreds.grantRead(this.lambda);
 
     // Create an API Gateway REST API
     const restApi = new apigateway.RestApi(this, 'apigw', {

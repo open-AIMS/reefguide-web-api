@@ -13,7 +13,12 @@ const serverlessExpress = require('@codegenie/serverless-express');
 // persist this between invocations so we aren't repeatedly spinning up express
 let handler: any;
 
-async function getSecret<T = any>(secretId: string): Promise<T> {
+interface CredsInterface {
+  username: string;
+  password: string;
+}
+
+async function getSecret(secretId: string): Promise<string> {
   // see https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets_lambda.html
   const secretsExtensionEndpoint = `http://localhost:2773/secretsmanager/get?secretId=${secretId}`;
   const headers = {
@@ -22,9 +27,19 @@ async function getSecret<T = any>(secretId: string): Promise<T> {
 
   try {
     const response = await axios.get(secretsExtensionEndpoint, { headers });
-    return JSON.parse(response.data.SecretString) as T;
+    return response.data.secretString as string;
   } catch (error) {
     console.error('Error retrieving secret:', error);
+    throw error;
+  }
+}
+
+async function getJsonSecret<T = any>(secretId: string): Promise<T> {
+  const secret = await getSecret(secretId);
+  try {
+    return JSON.parse(secret) as T;
+  } catch (error) {
+    console.error('Error parsing secret:', error);
     throw error;
   }
 }
@@ -54,30 +69,66 @@ exports.handler = async (event: any, context: any) => {
   if (handler) {
     return handler(event, context);
   } else {
-    // Get the secret ARN from the environment variable
-    const secretArn = process.env.API_SECRETS_ARN;
-
-    if (!secretArn) {
-      throw new Error('API_SECRETS_ARN environment variable is not set');
-    }
-
     try {
+      // Get the secret ARN from the environment variable
+      const secretArn = process.env.API_SECRETS_ARN;
+
+      // credentials for the worker and manager nodes - to initialise
+      const workerCredsArn = process.env.WORKER_CREDS_ARN;
+      const managerCredsArn = process.env.MANAGER_CREDS_ARN;
+      const adminCredsArn = process.env.ADMIN_CREDS_ARN;
+
+      if (
+        [secretArn, workerCredsArn, managerCredsArn, adminCredsArn].some(
+          v => !v,
+        )
+      ) {
+        throw new Error('Missing environment variables for initialisation.');
+      }
+
       // Retrieve the secret value using the Secrets Extension
-      const secretValue = await getSecret<ApiSecretConfig>(secretArn);
+      const secretJson = await getJsonSecret<ApiSecretConfig>(secretArn!);
+
+      // Now get init token
+      const managerCreds = await getJsonSecret<CredsInterface>(
+        managerCredsArn!,
+      );
+      const workerCreds = await getJsonSecret<CredsInterface>(workerCredsArn!);
+      const adminCreds = await getJsonSecret<CredsInterface>(adminCredsArn!);
 
       // Validate the secret
       try {
-        ApiSecretConfigSchema.parse(secretValue);
+        ApiSecretConfigSchema.parse(secretJson);
       } catch (e) {
         console.error('Failed to validate secret details. Error: ', e);
         throw e;
       }
 
-      // export secret to environment
-      exportToEnv(secretValue);
+      // export secrets to environment
+      exportToEnv({
+        ...secretJson,
+        ...{
+          MANAGER_USERNAME: managerCreds.username,
+          MANAGER_PASSWORD: managerCreds.password,
+        },
+        ...{
+          WORKER_USERNAME: workerCreds.username,
+          WORKER_PASSWORD: workerCreds.password,
+        },
+        ...{
+          ADMIN_USERNAME: adminCreds.username,
+          ADMIN_PASSWORD: adminCreds.password,
+        },
+      });
 
       // Call the serverlessExpress handler
-      const { default: app } = await import('../api/apiSetup');
+      const { default: app, initialiseAdmins } = await import(
+        '../api/apiSetup'
+      );
+
+      // Setup first
+      await initialiseAdmins();
+
       handler = serverlessExpress({ app });
       return handler(event, context);
     } catch (error) {

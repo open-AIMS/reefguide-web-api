@@ -1,3 +1,4 @@
+import { SecretStringGenerator } from 'aws-cdk-lib/aws-secretsmanager';
 import { z } from 'zod';
 
 /**
@@ -20,6 +21,12 @@ const envSchema = z.object({
   S3_BUCKET_NAME: z.string(),
   S3_URL_EXPIRY_SECONDS: z.number().default(3600),
   S3_MAX_FILES: z.number().default(10),
+  MANAGER_USERNAME: z.string(),
+  MANAGER_PASSWORD: z.string(),
+  WORKER_USERNAME: z.string(),
+  WORKER_PASSWORD: z.string(),
+  ADMIN_USERNAME: z.string(),
+  ADMIN_PASSWORD: z.string(),
 });
 
 /**
@@ -49,6 +56,14 @@ export interface Config {
     bucketName: string;
     urlExpirySeconds: number;
     maxFiles: number;
+  };
+  creds: {
+    managerUsername: string;
+    managerPassword: string;
+    workerUsername: string;
+    workerPassword: string;
+    adminUsername: string;
+    adminPassword: string;
   };
 }
 
@@ -90,6 +105,14 @@ export function getConfig(): Config {
       bucketName: env.S3_BUCKET_NAME,
       maxFiles: env.S3_MAX_FILES,
       urlExpirySeconds: env.S3_URL_EXPIRY_SECONDS,
+    },
+    creds: {
+      workerPassword: env.WORKER_PASSWORD,
+      workerUsername: env.WORKER_USERNAME,
+      managerPassword: env.MANAGER_PASSWORD,
+      managerUsername: env.MANAGER_USERNAME,
+      adminUsername: env.ADMIN_PASSWORD,
+      adminPassword: env.ADMIN_USERNAME,
     },
   };
 
