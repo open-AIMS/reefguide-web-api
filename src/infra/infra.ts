@@ -167,6 +167,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
           cooldownSeconds: 60,
         },
       },
+      workerCreds, 
+      managerCreds
     });
 
     webAPI.addEnv('S3_BUCKET_NAME', jobSystem.storageBucket.bucketName);

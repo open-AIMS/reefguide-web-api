@@ -4,9 +4,8 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
+import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
-import * as path from 'path';
 
 // Define job type configuration
 export interface JobTypeConfig {
@@ -47,6 +46,10 @@ export interface JobSystemProps {
 
   // Configuration for each job type
   jobTypes: Record<string, JobTypeConfig>;
+
+  // The credentials to be used by the manager and worker nodes
+  managerCreds: sm.Secret;
+  workerCreds: sm.Secret;
 }
 
 export class JobSystem extends Construct {
@@ -108,7 +111,18 @@ export class JobSystem extends Construct {
           // TODO use secret instead and username/pass
           API_AUTH_TOKEN: props.apiAuthToken,
         },
-        secrets: {},
+        // pass in the worker creds
+        // TODO do we want separate users for each worker?
+        secrets: {
+          API_USERNAME: ecs.Secret.fromSecretsManager(
+            props.workerCreds,
+            'username',
+          ),
+          API_PASSWORD: ecs.Secret.fromSecretsManager(
+            props.workerCreds,
+            'password',
+          ),
+        },
         healthCheck: {
           command: [
             'CMD-SHELL',
@@ -166,7 +180,17 @@ export class JobSystem extends Construct {
         // TODO don't do like this
         API_AUTH_TOKEN: props.apiAuthToken,
       },
-      secrets: {},
+      // pass in the manager creds
+      secrets: {
+        API_USERNAME: ecs.Secret.fromSecretsManager(
+          props.managerCreds,
+          'username',
+        ),
+        API_PASSWORD: ecs.Secret.fromSecretsManager(
+          props.managerCreds,
+          'password',
+        ),
+      },
       healthCheck: {
         command: [
           'CMD-SHELL',
