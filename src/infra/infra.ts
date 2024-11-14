@@ -7,6 +7,7 @@ import { ReefGuideAPI } from './components/reefGuideAPI';
 import { WebAPI } from './components/webAPI';
 import { DeploymentConfig } from './infra_config';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
+import { JobSystem } from './components/jobs';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -78,6 +79,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
       sharedBalancer: networking.sharedBalancer,
       config: config.reefGuideAPI,
     });
+    const cluster = reefGuideApi.fargateService.cluster;
 
     // Web API
     const webAPI = new WebAPI(this, 'web-api', {
@@ -87,7 +89,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
       hz: hz,
 
       // Expose the cluster information to web API so that it can control it
-      ecs_cluster_name: reefGuideApi.fargateService.cluster.clusterName,
+      ecs_cluster_name: cluster.clusterName,
       ecs_service_name: reefGuideApi.fargateService.serviceName,
     });
 
@@ -108,6 +110,31 @@ export class ReefguideWebApiStack extends cdk.Stack {
       cspEntries: [reefGuideApi.endpoint, webAPI.endpoint, 'blob:'].concat(
         ARC_GIS_ENDPOINTS,
       ),
+    });
+
+    const jobSystem = new JobSystem(this, 'job-system', {
+      vpc: networking.vpc,
+      cluster: cluster,
+      apiEndpoint: webAPI.endpoint,
+      // TODO securely do this and pass real value
+      apiAuthToken: 'your-auth-token',
+      capacityManager: {
+        cpu: 256,
+        memoryLimitMiB: 512,
+        pollIntervalMs: 5000,
+      },
+      jobTypes: {
+        CRITERIA_POLYGONS: {
+          cpu: 512,
+          memoryLimitMiB: 1024,
+          serverPort: 3000,
+          command: ['npm', 'run', 'start-worker'],
+          desiredMinCapacity: 0,
+          desiredMaxCapacity: 5,
+          scaleUpThreshold: 1,
+          cooldownSeconds: 60,
+        },
+      },
     });
   }
 }

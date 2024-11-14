@@ -1,5 +1,7 @@
 FROM node:20-slim
 
+ARG PORT=3000
+
 # context is parent
 WORKDIR /app
 
@@ -9,12 +11,7 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy source code
-COPY src/job-manager ./job-manager
-
-WORKDIR /app/job-manager
+COPY . .
 
 # Expose port for health checks
-EXPOSE 80
-
-# Start the service
-CMD ["npm", "run", "start-manager"]
+EXPOSE ${PORT}
