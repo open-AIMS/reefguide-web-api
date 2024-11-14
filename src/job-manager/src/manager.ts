@@ -39,6 +39,8 @@ export class CapacityManager {
     } catch (error) {
       console.error('Error polling job queue:', error);
     }
+
+    setTimeout(() => this.pollJobQueue(), this.config.pollIntervalMs);
   }
 
   private async adjustCapacity(jobsByType: Record<string, number>) {
@@ -88,6 +90,6 @@ export class CapacityManager {
 
   public start() {
     console.log('Starting capacity manager...');
-    setInterval(() => this.pollJobQueue(), this.config.pollIntervalMs);
+    setTimeout(() => this.pollJobQueue(), this.config.pollIntervalMs);
   }
 }

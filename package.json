@@ -37,6 +37,7 @@
     "@cloudcomponents/cdk-static-website": "^2.2.0",
     "@codegenie/serverless-express": "^4.15.0",
     "@prisma/client": "^5.22.0",
+    "@types/aws-lambda": "^8.10.145",
     "@types/helmet": "^4.0.0",
     "aws-cdk-lib": "2.158.0",
     "axios": "^1.7.7",

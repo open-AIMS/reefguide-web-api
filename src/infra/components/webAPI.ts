@@ -27,9 +27,9 @@ export interface WebAPIProps {
   /** The configuration object for the web api service */
   config: WebAPIConfig;
   /** The name of the ECS cluster service which hosts the Julia compute nodes */
-  ecs_cluster_name: string;
+  ecsClusterName: string;
   /** The name of the ECS service which hosts the Julia compute nodes */
-  ecs_service_name: string;
+  ecsServiceName: string;
 }
 
 /**
@@ -89,8 +89,8 @@ export class WebAPI extends Construct {
         API_SECRETS_ARN: config.apiSecretsArn,
         // Fully qualified domain for API domain - this defines the JWT iss
         API_DOMAIN: this.endpoint,
-        ECS_CLUSTER_NAME: props.ecs_cluster_name,
-        ECS_SERVICE_NAME: props.ecs_service_name,
+        ECS_CLUSTER_NAME: props.ecsClusterName,
+        ECS_SERVICE_NAME: props.ecsServiceName,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {
@@ -170,5 +170,9 @@ export class WebAPI extends Construct {
 
     // Add the policy to the Lambda's role
     this.lambda.addToRolePolicy(ecsPolicy);
+  }
+
+  public addEnv(key: string, val: string): void {
+    this.lambda.addEnvironment(key, val);
   }
 }

@@ -78,21 +78,18 @@ export class ReefGuideFrontend extends Construct {
     new cdk.CfnOutput(this, 'frontend-bucket-name', {
       value: this.bucket.bucketName,
       description: 'Name of the S3 bucket used for website content',
-      exportName: `${id}-bucket-name`,
     });
 
     // Output the CloudFront URL
     new cdk.CfnOutput(this, 'distribution-url', {
       value: this.distribution.distributionDomainName,
       description: 'URL of the CloudFront distribution',
-      exportName: `${id}-distribution-url`,
     });
 
     // Output the user URL
     new cdk.CfnOutput(this, 'website-url', {
       value: this.endpoint,
       description: 'URL of the website',
-      exportName: `${id}-website-url`,
     });
   }
 }

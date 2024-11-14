@@ -6,8 +6,8 @@ export const ConfigSchema = z.object({
   apiAuthToken: z.string(),
 
   // Worker identity
-  ecsTaskArn: z.string(),
-  ecsClusterArn: z.string(),
+  // ecsTaskArn: z.string(),
+  // ecsClusterArn: z.string(),
 
   // Worker behavior
   jobTypes: z.array(z.string()), // Which job types this worker can handle
@@ -16,6 +16,10 @@ export const ConfigSchema = z.object({
 
   // HTTP server settings
   port: z.number().default(3000),
+
+  // Auth settings
+  username: z.string(),
+  password: z.string(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

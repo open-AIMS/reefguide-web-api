@@ -28,7 +28,7 @@ export class TestWorker {
     console.log('Starting test worker with config:', {
       jobTypes: this.config.jobTypes,
       maxConcurrentJobs: this.config.maxConcurrentJobs,
-      pollInterval: this.config.pollIntervalMs
+      pollInterval: this.config.pollIntervalMs,
     });
 
     this.isPolling = true;
@@ -38,7 +38,7 @@ export class TestWorker {
   async stop() {
     console.log('Stopping worker...');
     this.isPolling = false;
-    
+
     // Cancel all active jobs
     for (const [jobId, timeout] of this.activeJobs.entries()) {
       clearTimeout(timeout);
@@ -66,16 +66,19 @@ export class TestWorker {
   private async pollForJobs() {
     try {
       // Get available jobs
-      const response = await axios.get(`${this.config.apiEndpoint}/api/jobs/poll`, {
-        params: { jobType: this.config.jobTypes[0] },
-        headers: {
-          'Authorization': `Bearer ${this.config.apiAuthToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await axios.get(
+        `${this.config.apiEndpoint}/api/jobs/poll`,
+        {
+          params: { jobType: this.config.jobTypes[0] },
+          headers: {
+            Authorization: `Bearer ${this.config.apiAuthToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
 
       const jobs: Job[] = response.data.jobs;
-      
+
       if (jobs.length === 0) {
         return;
       }
@@ -95,27 +98,29 @@ export class TestWorker {
         `${this.config.apiEndpoint}/api/jobs/assign`,
         {
           jobId: job.id,
-          ecsTaskArn: this.config.ecsTaskArn,
-          ecsClusterArn: this.config.ecsClusterArn
+          // TODO
+          // ecsTaskArn: this.config.ecsTaskArn,
+          ecsTaskArn: 'TODO',
+          ecsClusterArn: 'TODO',
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.config.apiAuthToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
+            Authorization: `Bearer ${this.config.apiAuthToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
       );
 
       const assignment: JobAssignment = assignResponse.data.assignment;
-      
+
       console.log(`Claimed job ${job.id}, assignment ${assignment.id}`);
-      
+
       // Simulate processing by setting a timeout
       const timeout = setTimeout(
         () => this.completeJob(assignment.id, job),
-        this.getRandomProcessingTime()
+        this.getRandomProcessingTime(),
       );
-      
+
       this.activeJobs.set(job.id, timeout);
     } catch (error) {
       console.error(`Error claiming job ${job.id}:`, error);
@@ -125,29 +130,33 @@ export class TestWorker {
   private async completeJob(assignmentId: number, job: Job) {
     try {
       console.log(`Completing job ${job.id}`);
-      
+
       // Simulate success/failure randomly
       const success = Math.random() > 0.1; // 90% success rate
-      
+
       await axios.post(
         `${this.config.apiEndpoint}/api/jobs/assignments/${assignmentId}/result`,
         {
           status: success ? 'SUCCEEDED' : 'FAILED',
-          resultPayload: success ? {
-            message: 'Test worker processed successfully',
-            processingTime: Date.now(),
-            testData: `Processed ${job.type} job`
-          } : null
+          resultPayload: success
+            ? {
+                message: 'Test worker processed successfully',
+                processingTime: Date.now(),
+                testData: `Processed ${job.type} job`,
+              }
+            : null,
         },
         {
           headers: {
-            'Authorization': `Bearer ${this.config.apiAuthToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
+            Authorization: `Bearer ${this.config.apiAuthToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
       );
 
-      console.log(`Job ${job.id} completed with status: ${success ? 'SUCCESS' : 'FAILURE'}`);
+      console.log(
+        `Job ${job.id} completed with status: ${success ? 'SUCCESS' : 'FAILURE'}`,
+      );
     } catch (error) {
       console.error(`Error completing job ${job.id}:`, error);
     } finally {

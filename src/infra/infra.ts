@@ -89,8 +89,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
       hz: hz,
 
       // Expose the cluster information to web API so that it can control it
-      ecs_cluster_name: cluster.clusterName,
-      ecs_service_name: reefGuideApi.fargateService.serviceName,
+      ecsClusterName: cluster.clusterName,
+      ecsServiceName: reefGuideApi.fargateService.serviceName,
     });
 
     // Let the Web API interact with the Julia cluster
@@ -136,5 +136,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
         },
       },
     });
+
+    webAPI.addEnv('S3_BUCKET_NAME', jobSystem.storageBucket.bucketName);
   }
 }
