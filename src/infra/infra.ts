@@ -27,6 +27,13 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // Pull out main config
     const config = props.config;
 
+    /**
+     * Generates an AWS secret manager secret for a given email to be used as
+     * seeded credentials by the API
+     * @param id The id of the secret to generate
+     * @param email The email to use as username field
+     * @returns Secret generated with {username: <email>, password: <random>}
+     */
     const credBuilder = (id: string, email: string) => {
       return new sm.Secret(this, id, {
         // {username, password}

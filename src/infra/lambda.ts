@@ -19,61 +19,180 @@ interface CredsInterface {
 }
 
 async function getSecret(secretId: string): Promise<string> {
-  // see https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets_lambda.html
+  console.log('=== getSecret START ===');
+  console.log('Input secretId:', secretId);
+
   const secretsExtensionEndpoint = `http://localhost:2773/secretsmanager/get?secretId=${secretId}`;
+  console.log('Endpoint URL:', secretsExtensionEndpoint);
+
   const headers = {
     'X-Aws-Parameters-Secrets-Token': process.env.AWS_SESSION_TOKEN!,
   };
+  console.log('Headers:', {
+    ...headers,
+    'X-Aws-Parameters-Secrets-Token': headers['X-Aws-Parameters-Secrets-Token']
+      ? '[PRESENT]'
+      : '[MISSING]',
+  });
 
   try {
+    console.log('Making HTTP request to Secrets Manager...');
     const response = await axios.get(secretsExtensionEndpoint, { headers });
-    return response.data.secretString as string;
-  } catch (error) {
-    console.error('Error retrieving secret:', error);
+    console.log('Raw response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      data: response.data, // Be careful with sensitive data in logs
+    });
+
+    if (!response.data) {
+      console.error('Response data is empty');
+      throw new Error('Empty response from Secrets Manager');
+    }
+
+    const secretString =
+      response.data.SecretString || response.data.secretString;
+    console.log('Secret string type:', typeof secretString);
+    console.log(
+      'Secret string length:',
+      secretString ? secretString.length : 0,
+    );
+
+    if (!secretString) {
+      console.error('SecretString not found in response');
+      throw new Error('SecretString missing from response');
+    }
+
+    console.log('=== getSecret END ===');
+    return secretString;
+  } catch (error: any) {
+    console.error('=== getSecret ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    if (axios.isAxiosError(error)) {
+      console.error('Axios error details:', {
+        response: {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers,
+        },
+        request: {
+          method: error.config?.method,
+          url: error.config?.url,
+          headers: error.config?.headers,
+        },
+      });
+    }
     throw error;
   }
 }
 
 async function getJsonSecret<T = any>(secretId: string): Promise<T> {
-  const secret = await getSecret(secretId);
+  console.log('=== getJsonSecret START ===');
+  console.log('Attempting to get secret with ID:', secretId);
+
+  let secret: string | undefined;
   try {
-    return JSON.parse(secret) as T;
-  } catch (error) {
-    console.error('Error parsing secret:', error);
+    secret = await getSecret(secretId);
+    console.log('Received secret type:', typeof secret);
+    console.log('Secret length:', secret?.length || 0);
+    console.log('Secret first 10 chars:', secret?.substring(0, 10) + '...');
+
+    if (!secret) {
+      console.error('Received empty secret');
+      throw new Error('Empty secret received');
+    }
+
+    console.log('Attempting to parse secret as JSON...');
+    const parsed = JSON.parse(secret);
+    console.log('Successfully parsed JSON. Result type:', typeof parsed);
+    console.log('Parsed object keys:', Object.keys(parsed));
+
+    console.log('=== getJsonSecret END ===');
+    return parsed as T;
+  } catch (error: any) {
+    console.error('=== getJsonSecret ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+
+    if (error instanceof SyntaxError) {
+      console.error(
+        'JSON parsing failed. First 50 chars of input:',
+        secret?.substring(0, 50),
+      );
+    }
+
     throw error;
   }
 }
 
-/**
- * Exports all key-value pairs from an object to process.env
- * @param {Record<string, string>} obj - The object containing key-value pairs to export
- * @throws {Error} If process.env is undefined or not writable
- */
 function exportToEnv(obj: Record<string, string>): void {
-  // Check if process.env is available and writable
-  if (typeof process === 'undefined' || typeof process.env !== 'object') {
-    throw new Error('process.env is not available or not writable');
-  }
+  console.log('=== exportToEnv START ===');
+  console.log('Received object with keys:', Object.keys(obj));
 
-  // Iterate through all keys in the object
-  for (const [key, value] of Object.entries(obj)) {
-    // Ensure the value is a string before assigning to process.env
-    process.env[key] = String(value);
-  }
+  try {
+    if (typeof process === 'undefined' || typeof process.env !== 'object') {
+      throw new Error('process.env is not available or not writable');
+    }
 
-  // Log the number of exported variables (optional)
-  console.log(`Exported ${Object.keys(obj).length} variables to process.env`);
+    let exportedCount = 0;
+    for (const [key, value] of Object.entries(obj)) {
+      console.log(
+        `Exporting key: ${key}, value length: ${String(value).length}`,
+      );
+      process.env[key] = String(value);
+      exportedCount++;
+    }
+
+    console.log(
+      `Successfully exported ${exportedCount} variables to process.env`,
+    );
+    console.log('=== exportToEnv END ===');
+  } catch (error: any) {
+    console.error('=== exportToEnv ERROR ===');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    throw error;
+  }
 }
 
 exports.handler = async (event: any, context: any) => {
+  console.log('=== Lambda Handler START ===');
+  console.log('Event:', JSON.stringify(event, null, 2));
+  console.log('Context:', {
+    functionName: context.functionName,
+    functionVersion: context.functionVersion,
+    memoryLimitInMB: context.memoryLimitInMB,
+    awsRequestId: context.awsRequestId,
+  });
+
   if (handler) {
+    console.log('Using existing handler');
     return handler(event, context);
   } else {
+    console.log('Initializing new handler');
     try {
-      // Get the secret ARN from the environment variable
-      const secretArn = process.env.API_SECRETS_ARN;
+      // Log environment variables (excluding sensitive values)
+      console.log('Environment variables present:', {
+        API_SECRETS_ARN: process.env.API_SECRETS_ARN
+          ? '[PRESENT]'
+          : '[MISSING]',
+        WORKER_CREDS_ARN: process.env.WORKER_CREDS_ARN
+          ? '[PRESENT]'
+          : '[MISSING]',
+        MANAGER_CREDS_ARN: process.env.MANAGER_CREDS_ARN
+          ? '[PRESENT]'
+          : '[MISSING]',
+        ADMIN_CREDS_ARN: process.env.ADMIN_CREDS_ARN
+          ? '[PRESENT]'
+          : '[MISSING]',
+      });
 
-      // credentials for the worker and manager nodes - to initialise
+      const secretArn = process.env.API_SECRETS_ARN;
       const workerCredsArn = process.env.WORKER_CREDS_ARN;
       const managerCredsArn = process.env.MANAGER_CREDS_ARN;
       const adminCredsArn = process.env.ADMIN_CREDS_ARN;
@@ -86,25 +205,31 @@ exports.handler = async (event: any, context: any) => {
         throw new Error('Missing environment variables for initialisation.');
       }
 
-      // Retrieve the secret value using the Secrets Extension
+      console.log('Fetching secrets...');
       const secretJson = await getJsonSecret<ApiSecretConfig>(secretArn!);
+      console.log('API secrets fetched successfully');
 
-      // Now get init token
       const managerCreds = await getJsonSecret<CredsInterface>(
         managerCredsArn!,
       );
-      const workerCreds = await getJsonSecret<CredsInterface>(workerCredsArn!);
-      const adminCreds = await getJsonSecret<CredsInterface>(adminCredsArn!);
+      console.log('Manager credentials fetched successfully');
 
-      // Validate the secret
+      const workerCreds = await getJsonSecret<CredsInterface>(workerCredsArn!);
+      console.log('Worker credentials fetched successfully');
+
+      const adminCreds = await getJsonSecret<CredsInterface>(adminCredsArn!);
+      console.log('Admin credentials fetched successfully');
+
+      console.log('Validating secret schema...');
       try {
         ApiSecretConfigSchema.parse(secretJson);
+        console.log('Secret schema validation successful');
       } catch (e) {
-        console.error('Failed to validate secret details. Error: ', e);
+        console.error('Schema validation failed:', e);
         throw e;
       }
 
-      // export secrets to environment
+      console.log('Exporting secrets to environment...');
       exportToEnv({
         ...secretJson,
         ...{
@@ -121,18 +246,24 @@ exports.handler = async (event: any, context: any) => {
         },
       });
 
-      // Call the serverlessExpress handler
+      console.log('Importing API setup...');
       const { default: app, initialiseAdmins } = await import(
         '../api/apiSetup'
       );
 
-      // Setup first
+      console.log('Initializing admins...');
       await initialiseAdmins();
 
+      console.log('Creating serverless express handler...');
       handler = serverlessExpress({ app });
+
+      console.log('=== Lambda Handler END ===');
       return handler(event, context);
-    } catch (error) {
-      console.error('Error in Lambda handler:', error);
+    } catch (error: any) {
+      console.error('=== Lambda Handler ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   }
