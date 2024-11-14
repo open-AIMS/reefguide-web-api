@@ -182,8 +182,9 @@ export class ReefGuideAPI extends Construct {
     this.fargateService = new ecs.FargateService(this, 'reefguide-service', {
       cluster: cluster,
       taskDefinition: reefGuideTaskDfn,
-      // TODO Update if we need to
-      desiredCount: 1,
+      // TODO Update if we need to 
+      // TODO restore
+      desiredCount: 0,
       securityGroups: [serviceSecurityGroup],
       assignPublicIp: true, // TODO Change this if using private subnets with NAT
       // give plenty of time

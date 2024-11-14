@@ -203,7 +203,8 @@ export class JobSystem extends Construct {
       {
         cluster: props.cluster,
         taskDefinition: capacityManagerTask,
-        desiredCount: 1, // We only need one instance
+        // TODO return once fixed
+        desiredCount: 0, // We only need one instance
         securityGroups: [capacityManagerSg],
         assignPublicIp: true,
         // Ensure service stays running

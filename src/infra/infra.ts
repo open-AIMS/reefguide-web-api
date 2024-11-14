@@ -27,44 +27,26 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // Pull out main config
     const config = props.config;
 
+    const credBuilder = (id: string, email: string) => {
+      return new sm.Secret(this, id, {
+        // {username, password}
+        generateSecretString: {
+          passwordLength: 16,
+          secretStringTemplate: JSON.stringify({
+            username: email,
+          }),
+          excludePunctuation: true,
+          includeSpace: false,
+          generateStringKey: 'password',
+        },
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      });
+    };
+
     // Manager service creds
-    const managerCreds = new sm.Secret(this, 'manager-creds', {
-      // {username, password}
-      generateSecretString: {
-        passwordLength: 16,
-        secretStringTemplate: JSON.stringify({
-          username: 'manager@service.com',
-        }),
-        generateStringKey: 'password',
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    // Worker service creds
-    const workerCreds = new sm.Secret(this, 'worker-creds', {
-      // {username, password}
-      generateSecretString: {
-        passwordLength: 16,
-        secretStringTemplate: JSON.stringify({
-          username: 'worker@service.com',
-        }),
-        generateStringKey: 'password',
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    // Admin creds
-    const adminCreds = new sm.Secret(this, 'admin-creds', {
-      // {username, password}
-      generateSecretString: {
-        passwordLength: 16,
-        secretStringTemplate: JSON.stringify({
-          username: 'admin@service.com',
-        }),
-        generateStringKey: 'password',
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    const managerCreds = credBuilder('manager-userpass', 'manager@service.com');
+    const adminCreds = credBuilder('admin-userpass', 'admin@service.com');
+    const workerCreds = credBuilder('worker-userpass', 'worker@service.com');
 
     // DNS SETUP
     // =========
