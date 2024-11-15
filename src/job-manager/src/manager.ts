@@ -1,31 +1,27 @@
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
-import axios from 'axios';
 import { Config, ConfigSchema, JobTypeConfig } from './config';
+import { AuthApiClient } from './authClient';
 
 export class CapacityManager {
   private config: Config;
   private ecsClient: ECSClient;
   private lastScaleTime: Record<string, number> = {};
+  private client: AuthApiClient;
 
-  constructor(config: Config) {
+  constructor(config: Config, client: AuthApiClient) {
     this.config = ConfigSchema.parse(config);
     this.ecsClient = new ECSClient({ region: this.config.region });
+    this.client = client;
   }
 
   private async pollJobQueue() {
     console.log('Poll...');
     try {
-      const response = await axios.get(
-        `${this.config.apiEndpoint}/api/jobs/poll`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.config.apiAuthToken}`,
-          },
-        },
-      );
+      // Type this better
+      const response = await this.client.get<{ jobs: any[] }>(`/api/jobs/poll`);
 
       // Group jobs by type
-      const jobsByType = response.data.jobs.reduce(
+      const jobsByType = response.jobs.reduce(
         (acc: Record<string, number>, job: any) => {
           acc[job.type] = (acc[job.type] || 0) + 1;
           return acc;

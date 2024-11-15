@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Config } from './config';
+import { AuthApiClient } from './authClient';
 
 interface Job {
   id: number;
@@ -17,11 +18,13 @@ export class TestWorker {
   private config: Config;
   private activeJobs: Map<number, NodeJS.Timeout>;
   private isPolling: boolean;
+  private client: AuthApiClient;
 
-  constructor(config: Config) {
+  constructor(config: Config, client: AuthApiClient) {
     this.config = config;
     this.activeJobs = new Map();
     this.isPolling = false;
+    this.client = client;
   }
 
   async start() {
@@ -66,18 +69,11 @@ export class TestWorker {
   private async pollForJobs() {
     try {
       // Get available jobs
-      const response = await axios.get(
-        `${this.config.apiEndpoint}/api/jobs/poll`,
-        {
-          params: { jobType: this.config.jobTypes[0] },
-          headers: {
-            Authorization: `Bearer ${this.config.apiAuthToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const response = await this.client.get<{ jobs: Job[] }>(`/jobs/poll`, {
+        params: { jobType: this.config.jobTypes[0] },
+      });
 
-      const jobs: Job[] = response.data.jobs;
+      const jobs: Job[] = response.jobs;
 
       if (jobs.length === 0) {
         return;
@@ -94,24 +90,16 @@ export class TestWorker {
   private async claimAndProcessJob(job: Job) {
     try {
       // Try to claim the job
-      const assignResponse = await axios.post(
-        `${this.config.apiEndpoint}/api/jobs/assign`,
-        {
-          jobId: job.id,
-          // TODO
-          // ecsTaskArn: this.config.ecsTaskArn,
-          ecsTaskArn: 'TODO',
-          ecsClusterArn: 'TODO',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.config.apiAuthToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const assignmentResponse = await this.client.post<{
+        assignment: JobAssignment;
+      }>('/jobs/assign', {
+        jobId: job.id,
+        // TODO make this real
+        ecsTaskArn: 'TODO',
+        ecsClusterArn: 'TODO',
+      });
 
-      const assignment: JobAssignment = assignResponse.data.assignment;
+      const assignment = assignmentResponse.assignment;
 
       console.log(`Claimed job ${job.id}, assignment ${assignment.id}`);
 
@@ -134,25 +122,16 @@ export class TestWorker {
       // Simulate success/failure randomly
       const success = Math.random() > 0.1; // 90% success rate
 
-      await axios.post(
-        `${this.config.apiEndpoint}/api/jobs/assignments/${assignmentId}/result`,
-        {
-          status: success ? 'SUCCEEDED' : 'FAILED',
-          resultPayload: success
-            ? {
-                message: 'Test worker processed successfully',
-                processingTime: Date.now(),
-                testData: `Processed ${job.type} job`,
-              }
-            : null,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.config.apiAuthToken}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      await this.client.post<any>(`/jobs/assignments/${assignmentId}/result`, {
+        status: success ? 'SUCCEEDED' : 'FAILED',
+        resultPayload: success
+          ? {
+              message: 'Test worker processed successfully',
+              processingTime: Date.now(),
+              testData: `Processed ${job.type} job`,
+            }
+          : null,
+      });
 
       console.log(
         `Job ${job.id} completed with status: ${success ? 'SUCCESS' : 'FAILURE'}`,

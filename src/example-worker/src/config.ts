@@ -1,41 +1,70 @@
 import { z } from 'zod';
 
+// Schema for validating environment variables directly
+const EnvVarsSchema = z.object({
+  API_ENDPOINT: z.string().url('Invalid API endpoint URL'),
+  API_AUTH_TOKEN: z.string().min(1, 'API authentication token is required'),
+  JOB_TYPES: z.string().min(1, 'At least one job type must be specified'),
+  POLL_INTERVAL_MS: z
+    .string()
+    .optional()
+    .default('1000')
+    .transform(val => parseInt(val))
+    .pipe(z.number().min(1000)),
+  MAX_CONCURRENT_JOBS: z
+    .string()
+    .optional()
+    .default('1')
+    .transform(val => parseInt(val))
+    .pipe(z.number().min(1)),
+  PORT: z
+    .string()
+    .optional()
+    .default('3000')
+    .transform(val => parseInt(val))
+    .pipe(z.number().positive()),
+  USERNAME: z.string().min(1, 'Username for the web API is required'),
+  PASSWORD: z.string().min(1, 'Password for the web API is required'),
+});
+
+// Main configuration schema
 export const ConfigSchema = z.object({
   // API connection settings
   apiEndpoint: z.string().url(),
-  apiAuthToken: z.string(),
-
-  // Worker identity
-  // ecsTaskArn: z.string(),
-  // ecsClusterArn: z.string(),
+  apiAuthToken: z.string().min(1),
 
   // Worker behavior
-  jobTypes: z.array(z.string()), // Which job types this worker can handle
+  jobTypes: z.array(z.string().min(1)),
   pollIntervalMs: z.number().min(1000).default(1000),
   maxConcurrentJobs: z.number().min(1).default(1),
 
   // HTTP server settings
-  port: z.number().default(3000),
+  port: z.number().min(1).default(3000),
 
   // Auth settings
-  username: z.string(),
-  password: z.string(),
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
 
-// Load config from environment variables
+// Load and validate configuration from environment variables
 export function loadConfig(): Config {
-  const config = {
-    apiEndpoint: process.env.API_ENDPOINT || 'http://localhost:5000',
-    apiAuthToken: process.env.API_AUTH_TOKEN || '',
-    ecsTaskArn: process.env.ECS_TASK_ARN,
-    ecsClusterArn: process.env.ECS_CLUSTER_ARN,
-    jobTypes: (process.env.JOB_TYPES || 'CRITERIA_POLYGONS').split(','),
-    pollIntervalMs: parseInt(process.env.POLL_INTERVAL_MS || '1000'),
-    maxConcurrentJobs: parseInt(process.env.MAX_CONCURRENT_JOBS || '1'),
-    port: parseInt(process.env.PORT || '3000'),
+  // First validate environment variables
+  const env = EnvVarsSchema.parse(process.env);
+
+  // Transform validated environment variables into config object
+  const config: Config = {
+    apiEndpoint: env.API_ENDPOINT,
+    apiAuthToken: env.API_AUTH_TOKEN,
+    jobTypes: env.JOB_TYPES.split(',').map(type => type.trim()),
+    pollIntervalMs: env.POLL_INTERVAL_MS,
+    maxConcurrentJobs: env.MAX_CONCURRENT_JOBS,
+    port: env.PORT,
+    username: env.USERNAME,
+    password: env.PASSWORD,
   };
 
+  // Validate the complete configuration
   return ConfigSchema.parse(config);
 }
