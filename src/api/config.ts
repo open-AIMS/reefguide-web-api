@@ -111,8 +111,8 @@ export function getConfig(): Config {
       workerUsername: env.WORKER_USERNAME,
       managerPassword: env.MANAGER_PASSWORD,
       managerUsername: env.MANAGER_USERNAME,
-      adminUsername: env.ADMIN_PASSWORD,
-      adminPassword: env.ADMIN_USERNAME,
+      adminUsername: env.ADMIN_USERNAME,
+      adminPassword: env.ADMIN_PASSWORD,
     },
   };
 

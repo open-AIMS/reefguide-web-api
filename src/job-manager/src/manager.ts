@@ -18,7 +18,7 @@ export class CapacityManager {
     console.log('Poll...');
     try {
       // Type this better
-      const response = await this.client.get<{ jobs: any[] }>(`/api/jobs/poll`);
+      const response = await this.client.get<{ jobs: any[] }>(`/jobs/poll`);
 
       // Group jobs by type
       const jobsByType = response.jobs.reduce(
