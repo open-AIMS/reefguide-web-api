@@ -204,6 +204,7 @@ export class JobSystem extends Construct {
       portMappings: [
         {
           containerPort: 3000,
+          hostPort: 3000,
           protocol: ecs.Protocol.TCP,
         },
       ],
@@ -227,8 +228,7 @@ export class JobSystem extends Construct {
       {
         cluster: props.cluster,
         taskDefinition: capacityManagerTask,
-        // TODO return once fixed
-        desiredCount: 0, // We only need one instance
+        desiredCount: 1, // We only need one instance
         securityGroups: [capacityManagerSg],
         assignPublicIp: true,
         // Ensure service stays running

@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { Config, ConfigSchema, loadConfig } from './config';
+import { Config, loadConfig } from './config';
 import { CapacityManager } from './manager';
 import { AuthApiClient } from './authClient';
 
@@ -14,7 +14,6 @@ app.get('/health', (req, res) => {
 
 let config: Config;
 
-// Usage example:
 try {
   config = loadConfig();
   console.log('Configuration loaded successfully');
@@ -27,19 +26,17 @@ try {
   process.exit(1);
 }
 
-// Create API client
-const client = new AuthApiClient(config.apiEndpoint, {
+// Create API client (base should include /api)
+const client = new AuthApiClient(config.apiEndpoint + '/api', {
   email: config.auth.email,
   password: config.auth.password,
 });
-
-// Start the capacity manager
-const manager = new CapacityManager(config, client);
-manager.start();
 
 // Start the express server
 app.listen(port, () => {
   console.log(`Health check server listening on port ${port}`);
 });
 
-export { CapacityManager, Config, ConfigSchema };
+// Start the capacity manager
+const manager = new CapacityManager(config, client);
+manager.start();

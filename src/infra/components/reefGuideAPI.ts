@@ -182,7 +182,7 @@ export class ReefGuideAPI extends Construct {
     this.fargateService = new ecs.FargateService(this, 'reefguide-service', {
       cluster: cluster,
       taskDefinition: reefGuideTaskDfn,
-      // TODO Update if we need to 
+      // TODO Update if we need to
       // TODO restore
       desiredCount: 0,
       securityGroups: [serviceSecurityGroup],
