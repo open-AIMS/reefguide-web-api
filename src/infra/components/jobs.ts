@@ -162,6 +162,32 @@ export class JobSystem extends Construct {
       }),
     );
 
+    // Add permissions to pass the task execution and task roles
+    capacityManagerTask.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        // Allow role passing through to all the task definitions
+        resources: Object.values(this.taskDefinitions).reduce(
+          (perms, taskDefinition) => {
+            return perms.concat([
+              // Allow passing the task execution role
+              taskDefinition.executionRole!.roleArn,
+              // Allow passing the task role
+              taskDefinition.taskRole.roleArn,
+            ]);
+          },
+          [] as string[],
+        ),
+        conditions: {
+          // Only allow passing these roles to ECS tasks
+          StringLike: {
+            'iam:PassedToService': 'ecs-tasks.amazonaws.com',
+          },
+        },
+      }),
+    );
+
     // Add capacity manager container
     capacityManagerTask.addContainer('capacity-manager', {
       // Docker command

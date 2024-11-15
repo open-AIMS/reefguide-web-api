@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '../exceptions';
+import { config } from '../config';
 
 /**
  * Type definition mapping job types to their input/output schemas
@@ -70,10 +71,7 @@ export class JobService {
     scheme: StorageScheme;
     uri: string;
   } {
-    // TODO destub this with actual bucket location etc
-
-    // TODO config variable
-    const bucketName = 'fake';
+    const bucketName = config.s3.bucketName;
     const bucketPrefix = 'results';
     return {
       scheme: StorageScheme.S3,
