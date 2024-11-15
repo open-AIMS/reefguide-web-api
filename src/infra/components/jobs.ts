@@ -167,6 +167,15 @@ export class JobSystem extends Construct {
       }),
     );
 
+    // Also enable describing subnets
+    capacityManagerTask.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['ec2:DescribeSubnets'],
+        resources: ['*'],
+      }),
+    );
+
     // Add permissions to pass the task execution and task roles
     capacityManagerTask.addToTaskRolePolicy(
       new iam.PolicyStatement({
