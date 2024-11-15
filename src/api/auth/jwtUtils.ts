@@ -11,7 +11,8 @@ export const PUBLIC_KEY = config.jwt.publicKey;
 const KEY_ID = config.jwt.keyId;
 const ISSUER = config.apiDomain;
 // 10 minutes for main token
-const TOKEN_EXPIRY = '10m';
+// TODO revert this back
+const TOKEN_EXPIRY = '2m';
 export const ALGORITHM = 'RS256';
 const KEY_TYPE = 'RSA';
 const KEY_USE = 'sig';

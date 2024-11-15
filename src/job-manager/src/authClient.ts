@@ -59,7 +59,9 @@ export class AuthApiClient {
           return config;
         }
 
+        console.log('Awaiting token in interceptor');
         const token = await this.getValidToken();
+        console.log('Token retrieved in interceptor');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -79,6 +81,7 @@ export class AuthApiClient {
     const expiresIn = decodedToken.exp - Math.floor(Date.now() / 1000);
 
     if (expiresIn <= this.TOKEN_REFRESH_THRESHOLD) {
+      console.log('get valid token thinks we need to refresh');
       await this.refreshToken();
     }
 
@@ -101,10 +104,12 @@ export class AuthApiClient {
     console.log('Token refresh started at:', new Date().toISOString());
     try {
       if (!this.tokens?.refreshToken) {
+        console.log('No refresh token, logging in...');
         await this.login();
         return;
       }
 
+      console.log('Posting to /auth/token with refreshToken in payload');
       const response = await this.axiosInstance.post<AuthTokens>(
         '/auth/token',
         {
@@ -113,16 +118,23 @@ export class AuthApiClient {
       );
 
       if (response.status !== 200) {
+        console.log(
+          'Non 200 response from refresh token endpoint.',
+          response.status,
+        );
         throw new Error('Non 200 response from refresh token.');
       }
 
+      console.log('Updating tokens');
       this.tokens = {
         ...this.tokens,
         token: response.data.token,
       };
     } catch (error) {
+      console.log('Error caught during refresh');
       // If refresh fails, try logging in again
       this.tokens = null;
+      // awaiting login
       await this.login();
     }
     console.log('Token refresh completed at:', new Date().toISOString());
