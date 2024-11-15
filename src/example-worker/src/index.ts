@@ -69,9 +69,6 @@ async function main() {
 
   // Start the worker
   await worker.start();
-
-  // Finished - must have finished up
-  process.exit(0);
 }
 
 // Start the application

@@ -46,6 +46,14 @@ export const jobDetailsSchema = z.object({
   input_payload: z.any(),
 });
 
+export const listJobsSchema = z.object({
+  status: z.nativeEnum(JobStatus).optional(),
+});
+export const listJobsResponseSchema = z.object({
+  jobs: z.array(jobDetailsSchema),
+  total: z.number(),
+});
+
 export const router = express.Router();
 const jobService = new JobService();
 
@@ -98,6 +106,7 @@ export type PollJobsResponse = z.infer<typeof pollJobsResponseSchema>;
 export type AssignJobResponse = z.infer<typeof assignJobResponseSchema>;
 export type JobDetailsResponse = z.infer<typeof jobDetailsResponseSchema>;
 export type DownloadResponse = z.infer<typeof downloadResponseSchema>;
+export type ListJobsResponse = z.infer<typeof listJobsResponseSchema>;
 
 // Routes
 router.post(
@@ -114,6 +123,28 @@ router.post(
       req.body.inputPayload,
     );
     res.status(201).json({ jobId: job.id });
+  },
+);
+
+router.get(
+  '/',
+  processRequest({
+    query: listJobsSchema,
+  }),
+  passport.authenticate('jwt', { session: false }),
+  async (req, res: Response<ListJobsResponse>) => {
+    if (!req.user) throw new UnauthorizedException();
+
+    const isAdmin = userIsAdmin(req.user);
+    const userId = isAdmin ? undefined : req.user.id;
+    const status = req.query.status as JobStatus | undefined;
+
+    const { jobs, total } = await jobService.listJobs({
+      userId,
+      status,
+    });
+
+    res.json({ jobs, total });
   },
 );
 

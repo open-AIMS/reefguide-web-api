@@ -59,6 +59,9 @@ export class TestWorker {
       console.log(`Cancelled job ${jobId}`);
     }
     this.activeJobs.clear();
+
+    // done - close process
+    process.exit(0);
   }
 
   private updateLastActivity() {
@@ -74,7 +77,10 @@ export class TestWorker {
     if (this.config.idleTimeoutMs) {
       this.idleTimeout = setTimeout(() => {
         const idleTime = Date.now() - this.lastActivityTimestamp;
-        if (idleTime >= this.config.idleTimeoutMs && this.activeJobs.size === 0) {
+        if (
+          idleTime >= this.config.idleTimeoutMs &&
+          this.activeJobs.size === 0
+        ) {
           console.log(`Worker idle for ${idleTime}ms, shutting down...`);
           this.stop();
         }

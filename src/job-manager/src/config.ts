@@ -78,16 +78,3 @@ export function loadConfig(): Config {
   // Validate the entire config object
   return ConfigSchema.parse(config);
 }
-
-// Usage example:
-try {
-  const config = loadConfig();
-  console.log('Configuration loaded successfully');
-} catch (error) {
-  if (error instanceof z.ZodError) {
-    console.error('Configuration validation failed:', error.errors);
-  } else {
-    console.error('Failed to load configuration:', error);
-  }
-  process.exit(1);
-}

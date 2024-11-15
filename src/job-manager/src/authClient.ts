@@ -102,6 +102,8 @@ export class AuthApiClient {
   }
 
   private async refreshToken(): Promise<void> {
+    console.log('Token refresh started at:', new Date().toISOString());
+
     // If a refresh is already in progress, wait for it
     if (this.tokenRefreshPromise) {
       await this.tokenRefreshPromise;
@@ -122,6 +124,10 @@ export class AuthApiClient {
           },
         );
 
+        if (response.status !== 200) {
+          throw new Error('Non 200 response from refresh token.');
+        }
+
         this.tokens = {
           ...this.tokens,
           token: response.data.token,
@@ -136,6 +142,7 @@ export class AuthApiClient {
     })();
 
     await this.tokenRefreshPromise;
+    console.log('Token refresh completed at:', new Date().toISOString());
   }
 
   // Base HTTP methods with proper typing
@@ -171,10 +178,7 @@ export class AuthApiClient {
     return response.data;
   }
 
-  public async delete<T>(
-    url: string,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
+  public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.delete<T>(url, config);
     return response.data;
   }

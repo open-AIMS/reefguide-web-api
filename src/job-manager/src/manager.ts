@@ -9,6 +9,8 @@ export class CapacityManager {
   private ec2Client: EC2Client;
   private lastScaleTime: Record<string, number> = {};
   private client: AuthApiClient;
+  private isRunning: boolean = false;
+  private pollTimeout: NodeJS.Timeout | null = null;
 
   constructor(config: Config, client: AuthApiClient) {
     this.config = ConfigSchema.parse(config);
@@ -18,12 +20,20 @@ export class CapacityManager {
   }
 
   private async pollJobQueue() {
-    console.log('Poll...');
-    try {
-      // Type this better
-      const response = await this.client.get<{ jobs: any[] }>(`/jobs/poll`);
+    if (!this.isRunning) return;
 
-      // Group jobs by type
+    const used = process.memoryUsage();
+    console.log('Memory usage:', {
+      heapTotal: `${Math.round(used.heapTotal / 1024 / 1024)} MB`,
+      heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)} MB`,
+      rss: `${Math.round(used.rss / 1024 / 1024)} MB`,
+    });
+
+    try {
+      console.log('Poll started at:', new Date().toISOString());
+
+      const response = await this.client.get<{ jobs: any[] }>('/jobs/poll');
+
       const jobsByType = response.jobs.reduce(
         (acc: Record<string, number>, job: any) => {
           acc[job.type] = (acc[job.type] || 0) + 1;
@@ -32,14 +42,59 @@ export class CapacityManager {
         {},
       );
 
-      console.log(jobsByType);
-
+      console.log('Jobs by type:', jobsByType);
       await this.adjustCapacity(jobsByType);
     } catch (error) {
       console.error('Error polling job queue:', error);
+    } finally {
+      // Only schedule next poll if still running
+      if (this.isRunning) {
+        this.pollTimeout = setTimeout(
+          () => this.pollJobQueue(),
+          this.config.pollIntervalMs,
+        );
+      }
     }
+  }
 
-    setTimeout(() => this.pollJobQueue(), this.config.pollIntervalMs);
+  public start() {
+    if (this.isRunning) return;
+
+    console.log('Starting capacity manager...');
+    this.isRunning = true;
+    this.pollJobQueue();
+
+    // Add error handlers for uncaught errors
+    process.on('uncaughtException', error => {
+      console.error('Uncaught exception:', error);
+      this.stop();
+    });
+
+    process.on('unhandledRejection', error => {
+      console.error('Unhandled rejection:', error);
+      this.stop();
+    });
+  }
+
+  public stop() {
+    console.log('Stopping capacity manager...');
+    this.isRunning = false;
+    if (this.pollTimeout) {
+      clearTimeout(this.pollTimeout);
+      this.pollTimeout = null;
+    }
+  }
+
+  private async adjustCapacity(jobsByType: Record<string, number>) {
+    for (const [jobType, pendingCount] of Object.entries(jobsByType)) {
+      const config = this.config.jobTypes[jobType];
+      if (!config) {
+        console.warn(`No configuration found for job type: ${jobType}`);
+        continue;
+      }
+
+      await this.adjustCapacityForType(jobType, pendingCount, config);
+    }
   }
 
   private async getRandomPublicSubnet(vpcId: string): Promise<string> {
@@ -75,18 +130,6 @@ export class CapacityManager {
     } catch (error) {
       console.error('Error getting public subnets:', error);
       throw error;
-    }
-  }
-
-  private async adjustCapacity(jobsByType: Record<string, number>) {
-    for (const [jobType, pendingCount] of Object.entries(jobsByType)) {
-      const config = this.config.jobTypes[jobType];
-      if (!config) {
-        console.warn(`No configuration found for job type: ${jobType}`);
-        continue;
-      }
-
-      await this.adjustCapacityForType(jobType, pendingCount, config);
     }
   }
 
@@ -132,10 +175,5 @@ export class CapacityManager {
         console.error(`Error starting task for ${jobType}:`, error);
       }
     }
-  }
-
-  public start() {
-    console.log('Starting capacity manager...');
-    setTimeout(() => this.pollJobQueue(), this.config.pollIntervalMs);
   }
 }

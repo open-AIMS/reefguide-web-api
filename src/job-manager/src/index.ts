@@ -41,3 +41,14 @@ app.listen(port, () => {
 // Start the capacity manager
 const manager = new CapacityManager(config, client);
 manager.start();
+
+// graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM signal, shutting down...');
+  manager.stop();
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT signal, shutting down...');
+  manager.stop();
+});

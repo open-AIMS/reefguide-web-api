@@ -1,7 +1,7 @@
 // jobs.ts
 import { z } from 'zod';
 import { prisma } from '../apiSetup';
-import { StorageScheme, JobType, JobStatus } from '@prisma/client';
+import { StorageScheme, JobType, JobStatus, Job } from '@prisma/client';
 import {
   BadRequestException,
   NotFoundException,
@@ -318,5 +318,47 @@ export class JobService {
       where: { id: jobId },
       data: { status: JobStatus.CANCELLED },
     });
+  }
+
+  /**
+   * Lists jobs with optional filtering by status and user
+   * If userId is undefined (admin query), returns all jobs
+   * If userId is provided, returns only jobs for that user
+   * @param params.userId - Optional user ID to filter by
+   * @param params.status - Optional status to filter by
+   * @returns Object containing jobs array and total count
+   */
+  async listJobs(params: {
+    userId?: number;
+    status?: JobStatus;
+  }): Promise<{ jobs: Job[]; total: number }> {
+    // Build where clause based on parameters
+    const where = {
+      ...(params.userId && { user_id: params.userId }),
+      ...(params.status && { status: params.status }),
+    };
+
+    // Execute both queries in parallel for efficiency
+    const [jobs, total] = await Promise.all([
+      prisma.job.findMany({
+        where,
+        include: {
+          assignments: {
+            include: {
+              result: true,
+            },
+          },
+        },
+        orderBy: [{ status: 'asc' }, { updated_at: 'desc' }],
+        // Reasonable page size for initial implementation
+        take: 50,
+      }),
+      prisma.job.count({ where }),
+    ]);
+
+    return {
+      jobs,
+      total,
+    };
   }
 }
