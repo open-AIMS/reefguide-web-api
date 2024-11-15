@@ -54,14 +54,13 @@ export class AuthApiClient {
         // Skip authentication for login and register endpoints
         if (
           config.url?.endsWith('/auth/login') ||
-          config.url?.endsWith('/auth/register')
+          config.url?.endsWith('/auth/register') || 
+          config.url?.endsWith('/auth/token')
         ) {
           return config;
         }
 
-        console.log('Awaiting token in interceptor');
         const token = await this.getValidToken();
-        console.log('Token retrieved in interceptor');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -81,7 +80,6 @@ export class AuthApiClient {
     const expiresIn = decodedToken.exp - Math.floor(Date.now() / 1000);
 
     if (expiresIn <= this.TOKEN_REFRESH_THRESHOLD) {
-      console.log('get valid token thinks we need to refresh');
       await this.refreshToken();
     }
 
@@ -109,7 +107,6 @@ export class AuthApiClient {
         return;
       }
 
-      console.log('Posting to /auth/token with refreshToken in payload');
       const response = await this.axiosInstance.post<AuthTokens>(
         '/auth/token',
         {
@@ -125,7 +122,6 @@ export class AuthApiClient {
         throw new Error('Non 200 response from refresh token.');
       }
 
-      console.log('Updating tokens');
       this.tokens = {
         ...this.tokens,
         token: response.data.token,

@@ -54,7 +54,8 @@ export class AuthApiClient {
         // Skip authentication for login and register endpoints
         if (
           config.url?.endsWith('/auth/login') ||
-          config.url?.endsWith('/auth/register')
+          config.url?.endsWith('/auth/register') ||
+          config.url?.endsWith('/auth/token')
         ) {
           return config;
         }
@@ -101,6 +102,7 @@ export class AuthApiClient {
     console.log('Token refresh started at:', new Date().toISOString());
     try {
       if (!this.tokens?.refreshToken) {
+        console.log('No refresh token, logging in...');
         await this.login();
         return;
       }
@@ -113,6 +115,10 @@ export class AuthApiClient {
       );
 
       if (response.status !== 200) {
+        console.log(
+          'Non 200 response from refresh token endpoint.',
+          response.status,
+        );
         throw new Error('Non 200 response from refresh token.');
       }
 
@@ -121,8 +127,10 @@ export class AuthApiClient {
         token: response.data.token,
       };
     } catch (error) {
+      console.log('Error caught during refresh');
       // If refresh fails, try logging in again
       this.tokens = null;
+      // awaiting login
       await this.login();
     }
     console.log('Token refresh completed at:', new Date().toISOString());
