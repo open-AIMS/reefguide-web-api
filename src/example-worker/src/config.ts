@@ -3,7 +3,6 @@ import { z } from 'zod';
 // Schema for validating environment variables directly
 const EnvVarsSchema = z.object({
   API_ENDPOINT: z.string().url('Invalid API endpoint URL'),
-  API_AUTH_TOKEN: z.string().min(1, 'API authentication token is required'),
   JOB_TYPES: z.string().min(1, 'At least one job type must be specified'),
   POLL_INTERVAL_MS: z
     .string()
@@ -31,7 +30,6 @@ const EnvVarsSchema = z.object({
 export const ConfigSchema = z.object({
   // API connection settings
   apiEndpoint: z.string().url(),
-  apiAuthToken: z.string().min(1),
 
   // Worker behavior
   jobTypes: z.array(z.string().min(1)),
@@ -56,7 +54,6 @@ export function loadConfig(): Config {
   // Transform validated environment variables into config object
   const config: Config = {
     apiEndpoint: env.API_ENDPOINT,
-    apiAuthToken: env.API_AUTH_TOKEN,
     jobTypes: env.JOB_TYPES.split(',').map(type => type.trim()),
     pollIntervalMs: env.POLL_INTERVAL_MS,
     maxConcurrentJobs: env.MAX_CONCURRENT_JOBS,

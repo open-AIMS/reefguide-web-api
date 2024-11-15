@@ -16,7 +16,6 @@ export const JobTypeConfigSchema = z.object({
 export const EnvVarsSchema = z.object({
   POLL_INTERVAL_MS: z.string().transform(val => parseInt(val)),
   API_ENDPOINT: z.string().url(),
-  API_AUTH_TOKEN: z.string().min(1, 'API auth token is required'),
   AWS_REGION: z.string().min(1, 'AWS region is required'),
   API_USERNAME: z.string().min(1, 'API username is required'),
   API_PASSWORD: z.string().min(1, 'API password is required'),
@@ -36,7 +35,6 @@ export const EnvVarsSchema = z.object({
 export const ConfigSchema = z.object({
   pollIntervalMs: z.number().min(1000),
   apiEndpoint: z.string().url(),
-  apiAuthToken: z.string(),
   region: z.string(),
   jobTypes: z.record(z.string(), JobTypeConfigSchema),
   auth: z.object({
@@ -58,7 +56,6 @@ export function loadConfig(): Config {
   const config: Config = {
     pollIntervalMs: env.POLL_INTERVAL_MS,
     apiEndpoint: env.API_ENDPOINT,
-    apiAuthToken: env.API_AUTH_TOKEN,
     region: env.AWS_REGION,
     jobTypes: {
       CRITERIA_POLYGONS: {
