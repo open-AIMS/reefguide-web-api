@@ -1,16 +1,19 @@
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { AssignPublicIp, ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { EC2Client, DescribeSubnetsCommand } from '@aws-sdk/client-ec2';
 import { Config, ConfigSchema, JobTypeConfig } from './config';
 import { AuthApiClient } from './authClient';
 
 export class CapacityManager {
   private config: Config;
   private ecsClient: ECSClient;
+  private ec2Client: EC2Client;
   private lastScaleTime: Record<string, number> = {};
   private client: AuthApiClient;
 
   constructor(config: Config, client: AuthApiClient) {
     this.config = ConfigSchema.parse(config);
     this.ecsClient = new ECSClient({ region: this.config.region });
+    this.ec2Client = new EC2Client({ region: this.config.region });
     this.client = client;
   }
 
@@ -37,6 +40,42 @@ export class CapacityManager {
     }
 
     setTimeout(() => this.pollJobQueue(), this.config.pollIntervalMs);
+  }
+
+  private async getRandomPublicSubnet(vpcId: string): Promise<string> {
+    try {
+      const command = new DescribeSubnetsCommand({
+        Filters: [
+          {
+            Name: 'vpc-id',
+            Values: [vpcId],
+          },
+          {
+            Name: 'map-public-ip-on-launch',
+            Values: ['true'],
+          },
+        ],
+      });
+
+      const response = await this.ec2Client.send(command);
+      const publicSubnets = response.Subnets || [];
+
+      if (publicSubnets.length === 0) {
+        throw new Error(`No public subnets found in VPC ${vpcId}`);
+      }
+
+      // Randomly select a subnet
+      const randomIndex = Math.floor(Math.random() * publicSubnets.length);
+      const selectedSubnet = publicSubnets[randomIndex];
+
+      console.log(
+        `Selected subnet ${selectedSubnet.SubnetId} in AZ ${selectedSubnet.AvailabilityZone}`,
+      );
+      return selectedSubnet.SubnetId!;
+    } catch (error) {
+      console.error('Error getting public subnets:', error);
+      throw error;
+    }
   }
 
   private async adjustCapacity(jobsByType: Record<string, number>) {
@@ -68,10 +107,20 @@ export class CapacityManager {
     // Only scale up if we have more pending jobs than our threshold
     if (pendingCount >= config.scaleUpThreshold) {
       try {
+        // Get a random public subnet for this task
+        const subnet = await this.getRandomPublicSubnet(this.config.vpcId);
+
         const command = new RunTaskCommand({
           cluster: config.clusterArn,
           taskDefinition: config.taskDefinitionArn,
           count: 1, // Start one task at a time
+          networkConfiguration: {
+            awsvpcConfiguration: {
+              subnets: [subnet],
+              assignPublicIp: AssignPublicIp.ENABLED,
+              securityGroups: [config.securityGroup],
+            },
+          },
         });
 
         await this.ecsClient.send(command);

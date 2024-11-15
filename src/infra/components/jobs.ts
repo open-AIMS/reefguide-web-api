@@ -74,6 +74,13 @@ export class JobSystem extends Construct {
       ],
     });
 
+    // Create a security group for worker tasks
+    const workerSg = new ec2.SecurityGroup(this, 'worker-sg', {
+      vpc: props.vpc,
+      description: 'Security group for workers',
+      allowAllOutbound: true,
+    });
+
     // Create task definitions for each job type
     this.taskDefinitions = {};
 
@@ -108,8 +115,6 @@ export class JobSystem extends Construct {
           JOB_TYPES: jobType,
           AWS_REGION: Stack.of(this).region,
           S3_BUCKET_NAME: this.storageBucket.bucketName,
-          // TODO use secret instead and username/pass
-          API_AUTH_TOKEN: props.apiAuthToken,
         },
         // pass in the worker creds
         // TODO do we want separate users for each worker?
@@ -203,8 +208,8 @@ export class JobSystem extends Construct {
         API_ENDPOINT: props.apiEndpoint,
         POLL_INTERVAL_MS: props.capacityManager.pollIntervalMs.toString(),
         AWS_REGION: Stack.of(this).region,
-        // TODO don't do like this
-        API_AUTH_TOKEN: props.apiAuthToken,
+        // Which vpc to deploy into
+        VPC_ID: props.vpc.vpcId,
       },
       // pass in the manager creds
       secrets: {
@@ -281,6 +286,7 @@ export class JobSystem extends Construct {
       taskDefEnvVars[`${jobType}_SCALE_THRESHOLD`] =
         config.scaleUpThreshold.toString();
       taskDefEnvVars[`${jobType}_COOLDOWN`] = config.cooldownSeconds.toString();
+      taskDefEnvVars[`${jobType}_SECURITY_GROUP`] = workerSg.securityGroupId;
     }
 
     // Update capacity manager container with task definition configurations
