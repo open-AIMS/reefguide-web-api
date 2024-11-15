@@ -117,7 +117,6 @@ export class CapacityManager {
           networkConfiguration: {
             awsvpcConfiguration: {
               subnets: [subnet],
-              assignPublicIp: AssignPublicIp.ENABLED,
               securityGroups: [config.securityGroup],
             },
           },
