@@ -167,10 +167,13 @@ export class ReefguideWebApiStack extends cdk.Stack {
           cooldownSeconds: 60,
         },
       },
-      workerCreds, 
-      managerCreds
+      workerCreds,
+      managerCreds,
     });
 
+    // let the webAPI read write the data storage bucket and tell it about
+    // storage bucket
     webAPI.addEnv('S3_BUCKET_NAME', jobSystem.storageBucket.bucketName);
+    jobSystem.storageBucket.grantReadWrite(webAPI.lambda);
   }
 }

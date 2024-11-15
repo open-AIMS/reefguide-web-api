@@ -50,7 +50,7 @@ export class WebAPI extends Construct {
   public readonly endpoint: string;
 
   /** The underlying lambda function */
-  private readonly lambda: lambda.Function;
+  public readonly lambda: lambda.Function;
 
   constructor(scope: Construct, id: string, props: WebAPIProps) {
     super(scope, id);
