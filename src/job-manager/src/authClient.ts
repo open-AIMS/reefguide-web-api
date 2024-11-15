@@ -40,7 +40,6 @@ export class AuthApiClient {
   private axiosInstance: AxiosInstance;
   private credentials: Credentials;
   private tokens: AuthTokens | null = null;
-  private tokenRefreshPromise: Promise<void> | null = null;
   private readonly TOKEN_REFRESH_THRESHOLD = 60; // 1 minute in seconds
 
   constructor(baseURL: string, credentials: Credentials) {
@@ -103,45 +102,32 @@ export class AuthApiClient {
 
   private async refreshToken(): Promise<void> {
     console.log('Token refresh started at:', new Date().toISOString());
-
-    // If a refresh is already in progress, wait for it
-    if (this.tokenRefreshPromise) {
-      await this.tokenRefreshPromise;
-      return;
-    }
-
-    this.tokenRefreshPromise = (async () => {
-      try {
-        if (!this.tokens?.refreshToken) {
-          await this.login();
-          return;
-        }
-
-        const response = await this.axiosInstance.post<AuthTokens>(
-          '/auth/token',
-          {
-            refreshToken: this.tokens.refreshToken,
-          },
-        );
-
-        if (response.status !== 200) {
-          throw new Error('Non 200 response from refresh token.');
-        }
-
-        this.tokens = {
-          ...this.tokens,
-          token: response.data.token,
-        };
-      } catch (error) {
-        // If refresh fails, try logging in again
-        this.tokens = null;
+    try {
+      if (!this.tokens?.refreshToken) {
         await this.login();
-      } finally {
-        this.tokenRefreshPromise = null;
+        return;
       }
-    })();
 
-    await this.tokenRefreshPromise;
+      const response = await this.axiosInstance.post<AuthTokens>(
+        '/auth/token',
+        {
+          refreshToken: this.tokens.refreshToken,
+        },
+      );
+
+      if (response.status !== 200) {
+        throw new Error('Non 200 response from refresh token.');
+      }
+
+      this.tokens = {
+        ...this.tokens,
+        token: response.data.token,
+      };
+    } catch (error) {
+      // If refresh fails, try logging in again
+      this.tokens = null;
+      await this.login();
+    }
     console.log('Token refresh completed at:', new Date().toISOString());
   }
 
