@@ -20,6 +20,8 @@ export class TestWorker {
   private isPolling: boolean;
   private client: AuthApiClient;
   private metadata: Partial<TaskIdentifiers>;
+  private idleTimeout: NodeJS.Timeout | null = null;
+  private lastActivityTimestamp: number = Date.now();
 
   constructor(
     config: Config,
@@ -38,15 +40,18 @@ export class TestWorker {
       jobTypes: this.config.jobTypes,
       maxConcurrentJobs: this.config.maxConcurrentJobs,
       pollInterval: this.config.pollIntervalMs,
+      idleTimeout: this.config.idleTimeoutMs,
     });
 
     this.isPolling = true;
     this.poll();
+    this.startIdleTimer();
   }
 
   async stop() {
     console.log('Stopping worker...');
     this.isPolling = false;
+    this.clearIdleTimer();
 
     // Cancel all active jobs
     for (const [jobId, timeout] of this.activeJobs.entries()) {
@@ -54,6 +59,34 @@ export class TestWorker {
       console.log(`Cancelled job ${jobId}`);
     }
     this.activeJobs.clear();
+  }
+
+  private updateLastActivity() {
+    this.lastActivityTimestamp = Date.now();
+    this.startIdleTimer(); // Reset the idle timer
+  }
+
+  private startIdleTimer() {
+    // Clear any existing timer
+    this.clearIdleTimer();
+
+    // Only start the timer if idleTimeoutMs is configured
+    if (this.config.idleTimeoutMs) {
+      this.idleTimeout = setTimeout(() => {
+        const idleTime = Date.now() - this.lastActivityTimestamp;
+        if (idleTime >= this.config.idleTimeoutMs && this.activeJobs.size === 0) {
+          console.log(`Worker idle for ${idleTime}ms, shutting down...`);
+          this.stop();
+        }
+      }, this.config.idleTimeoutMs);
+    }
+  }
+
+  private clearIdleTimer() {
+    if (this.idleTimeout) {
+      clearTimeout(this.idleTimeout);
+      this.idleTimeout = null;
+    }
   }
 
   private async poll() {
@@ -85,6 +118,9 @@ export class TestWorker {
         return;
       }
 
+      // Update activity timestamp when we find a job
+      this.updateLastActivity();
+
       // Try to claim first available job
       const job = jobs[0];
       await this.claimAndProcessJob(job);
@@ -100,17 +136,18 @@ export class TestWorker {
         assignment: JobAssignment;
       }>('/jobs/assign', {
         jobId: job.id,
-        // TODO make this real
         ecsTaskArn:
           this.metadata.taskArn ?? 'Unknown - metadata lookup failure',
         ecsClusterArn:
           this.metadata.clusterArn ?? 'Unknown - metadata lookup failure',
-        // TODO should we include the task ID here?
       });
 
       const assignment = assignmentResponse.assignment;
 
       console.log(`Claimed job ${job.id}, assignment ${assignment.id}`);
+
+      // Update activity timestamp when we claim a job
+      this.updateLastActivity();
 
       // Simulate processing by setting a timeout
       const timeout = setTimeout(
@@ -139,6 +176,9 @@ export class TestWorker {
       console.log(
         `Job ${job.id} completed with status: ${success ? 'SUCCESS' : 'FAILURE'}`,
       );
+
+      // Update activity timestamp when we complete a job
+      this.updateLastActivity();
     } catch (error) {
       console.error(`Error completing job ${job.id}:`, error);
     } finally {

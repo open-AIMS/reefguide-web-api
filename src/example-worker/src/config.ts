@@ -35,6 +35,11 @@ export const ConfigSchema = z.object({
   jobTypes: z.array(z.string().min(1)),
   pollIntervalMs: z.number().min(1000).default(1000),
   maxConcurrentJobs: z.number().min(1).default(1),
+  // period of inactivity before stopping polling two minutes by default
+  idleTimeoutMs: z
+    .number()
+    .positive()
+    .default(2 * 60 * 1000),
 
   // HTTP server settings
   port: z.number().min(1).default(3000),
@@ -52,7 +57,7 @@ export function loadConfig(): Config {
   const env = EnvVarsSchema.parse(process.env);
 
   // Transform validated environment variables into config object
-  const config: Config = {
+  const config: Partial<Config> = {
     apiEndpoint: env.API_ENDPOINT,
     jobTypes: env.JOB_TYPES.split(',').map(type => type.trim()),
     pollIntervalMs: env.POLL_INTERVAL_MS,
