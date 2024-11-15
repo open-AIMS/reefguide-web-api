@@ -96,8 +96,6 @@ Content-Type: {{contentType}}
 {
     "status": "FAILED",
     "resultPayload": {
-        "error": "Failed to process polygons",
-        "details": "Invalid polygon geometry"
     }
 }
 

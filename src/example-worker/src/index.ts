@@ -3,6 +3,7 @@ import { Config, loadConfig } from './config';
 import { TestWorker } from './worker';
 import { z } from 'zod';
 import { AuthApiClient } from './authClient';
+import { getTaskMetadataSafe } from './ecs';
 
 async function main() {
   let config: Config;
@@ -22,6 +23,10 @@ async function main() {
     process.exit(1);
   }
 
+  // Get info about the task
+
+  const metadata = await getTaskMetadataSafe();
+
   // Setup the api client
   const client = new AuthApiClient(config.apiEndpoint + '/api', {
     email: config.username,
@@ -32,7 +37,7 @@ async function main() {
   const app = express();
 
   // Create worker instance
-  const worker = new TestWorker(config, client);
+  const worker = new TestWorker(config, client, metadata);
 
   // Health check endpoint
   app.get('/health', (req, res) => {

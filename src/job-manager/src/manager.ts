@@ -113,11 +113,13 @@ export class CapacityManager {
         const command = new RunTaskCommand({
           cluster: config.clusterArn,
           taskDefinition: config.taskDefinitionArn,
+          launchType: 'FARGATE',
           count: 1, // Start one task at a time
           networkConfiguration: {
             awsvpcConfiguration: {
               subnets: [subnet],
               securityGroups: [config.securityGroup],
+              assignPublicIp: AssignPublicIp.ENABLED,
             },
           },
         });

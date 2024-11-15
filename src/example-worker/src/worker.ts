@@ -1,5 +1,6 @@
 import { Config } from './config';
 import { AuthApiClient } from './authClient';
+import { TaskIdentifiers } from './ecs';
 
 interface Job {
   id: number;
@@ -18,8 +19,14 @@ export class TestWorker {
   private activeJobs: Map<number, NodeJS.Timeout>;
   private isPolling: boolean;
   private client: AuthApiClient;
+  private metadata: Partial<TaskIdentifiers>;
 
-  constructor(config: Config, client: AuthApiClient) {
+  constructor(
+    config: Config,
+    client: AuthApiClient,
+    metadata: Partial<TaskIdentifiers>,
+  ) {
+    this.metadata = metadata;
     this.config = config;
     this.activeJobs = new Map();
     this.isPolling = false;
@@ -94,8 +101,11 @@ export class TestWorker {
       }>('/jobs/assign', {
         jobId: job.id,
         // TODO make this real
-        ecsTaskArn: 'TODO',
-        ecsClusterArn: 'TODO',
+        ecsTaskArn:
+          this.metadata.taskArn ?? 'Unknown - metadata lookup failure',
+        ecsClusterArn:
+          this.metadata.clusterArn ?? 'Unknown - metadata lookup failure',
+        // TODO should we include the task ID here?
       });
 
       const assignment = assignmentResponse.assignment;
@@ -123,13 +133,7 @@ export class TestWorker {
 
       await this.client.post<any>(`/jobs/assignments/${assignmentId}/result`, {
         status: success ? 'SUCCEEDED' : 'FAILED',
-        resultPayload: success
-          ? {
-              message: 'Test worker processed successfully',
-              processingTime: Date.now(),
-              testData: `Processed ${job.type} job`,
-            }
-          : null,
+        resultPayload: success ? {} : null,
       });
 
       console.log(

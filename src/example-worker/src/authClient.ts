@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 interface Credentials {
@@ -171,10 +171,7 @@ export class AuthApiClient {
     return response.data;
   }
 
-  public async delete<T>(
-    url: string,
-    config?: AxiosRequestConfig,
-  ): Promise<T> {
+  public async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.axiosInstance.delete<T>(url, config);
     return response.data;
   }
