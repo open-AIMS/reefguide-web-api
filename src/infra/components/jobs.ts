@@ -55,8 +55,10 @@ export interface JobSystemProps {
 export class JobSystem extends Construct {
   // The S3 bucket for job results
   public readonly storageBucket: s3.Bucket;
+
   // Task definitions for each job type
   public readonly taskDefinitions: Record<string, ecs.TaskDefinition>;
+
   // The capacity manager service
   public readonly capacityManagerService: ecs.FargateService;
 

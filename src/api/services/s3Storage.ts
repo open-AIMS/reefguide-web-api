@@ -10,6 +10,7 @@ const MAX_FILES = 10;
 
 export class S3StorageService {
   private s3Client: S3Client;
+
   private bucket: string;
 
   constructor(bucket: string) {

@@ -1,4 +1,3 @@
-import { SecretStringGenerator } from 'aws-cdk-lib/aws-secretsmanager';
 import { z } from 'zod';
 
 /**

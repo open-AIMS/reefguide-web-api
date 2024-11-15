@@ -5,11 +5,17 @@ import { AuthApiClient } from './authClient';
 
 export class CapacityManager {
   private config: Config;
+
   private ecsClient: ECSClient;
+
   private ec2Client: EC2Client;
+
   private lastScaleTime: Record<string, number> = {};
+
   private client: AuthApiClient;
+
   private isRunning: boolean = false;
+
   private pollTimeout: NodeJS.Timeout | null = null;
 
   constructor(config: Config, client: AuthApiClient) {

@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
 interface Credentials {
@@ -18,12 +18,6 @@ interface JWTPayload {
   exp: number;
 }
 
-interface User {
-  id: string;
-  email: string;
-  roles: string[];
-}
-
 // Generic error type for API errors
 export class ApiError extends Error {
   constructor(
@@ -38,8 +32,11 @@ export class ApiError extends Error {
 
 export class AuthApiClient {
   private axiosInstance: AxiosInstance;
+
   private credentials: Credentials;
+
   private tokens: AuthTokens | null = null;
+
   private readonly TOKEN_REFRESH_THRESHOLD = 60; // 1 minute in seconds
 
   constructor(baseURL: string, credentials: Credentials) {

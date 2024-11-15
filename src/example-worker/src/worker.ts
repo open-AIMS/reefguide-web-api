@@ -16,11 +16,17 @@ interface JobAssignment {
 
 export class TestWorker {
   private config: Config;
+
   private activeJobs: Map<number, NodeJS.Timeout>;
+
   private isPolling: boolean;
+
   private client: AuthApiClient;
+
   private metadata: Partial<TaskIdentifiers>;
+
   private idleTimeout: NodeJS.Timeout | null = null;
+
   private lastActivityTimestamp: number = Date.now();
 
   constructor(
@@ -114,7 +120,7 @@ export class TestWorker {
   private async pollForJobs() {
     try {
       // Get available jobs
-      const response = await this.client.get<{ jobs: Job[] }>(`/jobs/poll`, {
+      const response = await this.client.get<{ jobs: Job[] }>('/jobs/poll', {
         params: { jobType: this.config.jobTypes[0] },
       });
 
