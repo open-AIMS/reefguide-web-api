@@ -75,10 +75,10 @@ export class S3StorageService {
     const urlMap: Record<string, string> = {};
     for (const file of files) {
       if (!file.Key) continue;
-      
+
       // Get the relative path by removing the prefix
       const relativePath = file.Key.slice(prefix.length).replace(/^\//, '');
-      
+
       const getCommand = new GetObjectCommand({
         Bucket: bucket,
         Key: file.Key,
@@ -86,7 +86,7 @@ export class S3StorageService {
       const presignedUrl = await getSignedUrl(this.s3Client, getCommand, {
         expiresIn: expirySeconds,
       });
-      
+
       urlMap[relativePath] = presignedUrl;
     }
 
