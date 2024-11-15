@@ -208,6 +208,10 @@ export class JobSystem extends Construct {
       command: ['npm', 'run', 'start-manager'],
       image: ecs.ContainerImage.fromAsset('.', {
         buildArgs: { PORT: '3000' },
+        // Very annoying if the docker build includes the infra folder because
+        // then literally any change will cause a new docker image to be
+        // deployed
+        exclude: ['src/infra'],
       }),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'capacity-manager',
