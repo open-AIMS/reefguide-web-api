@@ -126,7 +126,7 @@ export class JobSystem extends Construct {
         healthCheck: {
           command: [
             'CMD-SHELL',
-            `curl -f http://localhost:${config.serverPort}/health || exit 1`,
+            `curl -f http://localhost:${config.serverPort}/health >> /proc/1/fd/1 2>&1 || exit 1`,
           ],
           interval: Duration.seconds(30),
           timeout: Duration.seconds(5),
@@ -194,7 +194,7 @@ export class JobSystem extends Construct {
       healthCheck: {
         command: [
           'CMD-SHELL',
-          'curl -f http://localhost:3000/health || exit 1',
+          'curl -f http://localhost:3000/health >> /proc/1/fd/1 2>&1 || exit 1',
         ],
         interval: Duration.seconds(30),
         timeout: Duration.seconds(5),

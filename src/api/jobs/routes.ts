@@ -10,7 +10,7 @@ import { config } from '../config';
 import { S3StorageService } from '../services/s3Storage';
 require('express-async-errors');
 
-// Create DTOs for complex response types
+// API interfaces
 export const jobAssignmentSchema = z.object({
   id: z.number(),
   created_at: z.date(),

@@ -9,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.get('/health', (req, res) => {
+  console.log('Health check, returning 200 OK');
   res.status(200).send('OK');
 });
 
