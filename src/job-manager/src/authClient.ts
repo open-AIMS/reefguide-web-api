@@ -54,7 +54,7 @@ export class AuthApiClient {
         // Skip authentication for login and register endpoints
         if (
           config.url?.endsWith('/auth/login') ||
-          config.url?.endsWith('/auth/register') || 
+          config.url?.endsWith('/auth/register') ||
           config.url?.endsWith('/auth/token')
         ) {
           return config;
