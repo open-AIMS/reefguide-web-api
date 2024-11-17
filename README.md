@@ -767,6 +767,80 @@ stateDiagram-v2
     TIMED_OUT --> [*]
 ```
 
+## Job Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    critical Launch Job
+    User->>Web API: launch(payload)
+    Web API->>DB: create Job
+    DB-->>Web API: job_id
+    Web API-->>User: job_id
+    end
+
+    critical Job Manager Polling
+    loop Poll loop
+    Manager->>Web API: /poll
+    Web API->>DB: query (unassigned)
+    DB-->>Web API: jobs[]
+    Web API-->>Manager: jobs[]
+    Note left of Manager: If jobs.length > 0...
+    end
+
+    critical Job Manager Capacity
+    option Cooldown period complete
+    Manager->>ECS: launch task type
+    Note left of Manager: Task dfn corresponds<br/>to task type
+    end
+
+
+    critical Worker lifecycle
+
+    loop Worker poll loop
+    Worker->>Web API: /poll
+    Web API-->>Worker: jobs[]
+    end
+
+    option Assign job
+    Worker->>Web API: assign(task info)
+    Web API->>DB: Create assignment<br/>update status
+
+    option Complete job
+    Worker->>Worker: Start job
+    activate Worker
+    Worker-->>Worker: Job finished
+    deactivate Worker
+
+    option Store result files
+    Note left of Worker: job includes S3 location
+    Worker->>S3: Upload files
+
+    option Report result
+    Worker->>Web API: Result(status, payload)
+    Web API->>DB: Create JobResult<br/>Update JobAssignment<br/>Update Job
+
+    end
+
+    critical User workflow
+    loop User status checks
+    User->>Web API: GET /:id
+    Web API-->>User: Job status + details
+    end
+
+    option complete task
+    User->>Web API: GET /:id
+    Web API-->>User: Job results
+    User->>Web API: GET /:id/download
+    Web API->>S3: Presign URLs
+    S3-->>Web API: Presigned URLs[]
+    Web API-->>User: urls: Map<key, url>
+    User->>User: download files
+    User->>User: visualise results
+    end
+
+    end
+```
+
 ## API Routes
 
 ### Job Management
