@@ -83,9 +83,9 @@ export class JobService {
     jobType: JobType,
     jobId: number,
   ): {
-    scheme: StorageScheme;
-    uri: string;
-  } {
+      scheme: StorageScheme;
+      uri: string;
+    } {
     const bucketName = config.s3.bucketName;
     const bucketPrefix = 'results';
     return {
@@ -538,6 +538,7 @@ export class JobService {
       );
     }
   }
+
   /**
    * Produces a deterministic hash of a job based on a deterministic string
    * serialisation of a job and the job type.
