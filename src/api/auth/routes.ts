@@ -33,7 +33,7 @@ router.post(
   async (req: Request, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
     const newUserId = await registerUser({ email, password, roles: [] });
-    res.status(201).json({ userId: newUserId });
+    res.status(200).json({ userId: newUserId });
   },
 );
 

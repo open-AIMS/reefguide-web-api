@@ -8,6 +8,21 @@ import {
   UnauthorizedException,
 } from '../exceptions';
 import { config } from '../config';
+import crypto from 'crypto';
+
+// Type definition for any JSON-serializable value
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JSONValue[]
+  | { [key: string]: JSONValue };
+
+// Interface for the normalized object structure
+interface NormalizedObject {
+  [key: string]: JSONValue;
+}
 
 /**
  * Type definition mapping job types to their input/output schemas
@@ -115,6 +130,85 @@ export class JobService {
     }
   }
 
+  public async checkJobCache(
+    jobPaylod: any,
+    jobType: JobType,
+  ): Promise<Job | undefined> {
+    // Calculate job hash
+    const hash = await this.generateJobHash({ jobType, payload: jobPaylod });
+    // Find jobs with a matching hash
+    const existingJobs = await prisma.job.findMany({ where: { hash } });
+
+    // What jobs are we interested in - those that are incomplete, or
+    // successful. Choose the latest edition.
+    let bestCandidate: Job | undefined = undefined;
+    for (const job of existingJobs) {
+      if (!bestCandidate) {
+        bestCandidate = job;
+        continue;
+      }
+
+      // If the job is successful, always prioritise unless another successful job which is newer
+      if (job.status === 'SUCCEEDED') {
+        // We have a candidate, is this one better?
+        if (job.created_at > bestCandidate.created_at) {
+          // this one is newer - so let's keep it
+          bestCandidate = job;
+          continue;
+        }
+
+        // Otherwise - proceed on
+        continue;
+      }
+
+      // The job is not successful, is it in progress at least?
+      if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
+        // If current job is succesful, keep it
+        if (bestCandidate.status === 'SUCCEEDED') {
+          // keep the successful
+          continue;
+        }
+
+        // Is it also a pending/in progress?
+        if (
+          bestCandidate.status === 'PENDING' ||
+          bestCandidate.status === 'IN_PROGRESS'
+        ) {
+          // This is a 'tie' - choose newer
+          if (job.created_at > bestCandidate.created_at) {
+            // this one is newer - so let's keep it
+            bestCandidate = job;
+            continue;
+          }
+        }
+
+        // Otherwise it must have failed, pick new one
+        bestCandidate = job;
+        continue;
+      }
+
+      // The job must be failed - if we have any job of superior status, keep it
+      if (
+        bestCandidate.status === 'SUCCEEDED' ||
+        bestCandidate.status === 'IN_PROGRESS' ||
+        bestCandidate.status === 'PENDING'
+      ) {
+        // keep the successful
+        continue;
+      }
+
+      // This is a 'tie' - choose newer
+      if (job.created_at > bestCandidate.created_at) {
+        // this one is newer - so let's keep it
+        bestCandidate = job;
+        continue;
+      }
+    }
+
+    // return the best candidate with hash match
+    return bestCandidate;
+  }
+
   /**
    * Creates a new job
    * @param userId - ID of user creating the job
@@ -131,6 +225,11 @@ export class JobService {
         user_id: userId,
         input_payload: inputPayload,
         status: JobStatus.PENDING,
+        // hash job contents
+        hash: await this.generateJobHash({
+          payload: inputPayload,
+          jobType: jobType,
+        }),
       },
     });
   }
@@ -360,5 +459,103 @@ export class JobService {
       jobs,
       total,
     };
+  }
+
+  /**
+   * Recursively normalizes an object to ensure deterministic serialization
+   * @param value - The value to normalize
+   * @returns A normalized version of the input
+   */
+  private normalizeObject(value: any): JSONValue {
+    // Handle null early
+    if (value === null) {
+      return null;
+    }
+
+    // Handle different types
+    switch (typeof value) {
+      case 'string':
+        // Normalize string whitespace
+        return value.trim().replace(/\s+/g, ' ');
+
+      case 'number':
+        // Handle NaN and Infinity
+        if (!Number.isFinite(value)) {
+          return null;
+        }
+        return value;
+
+      case 'boolean':
+        return value;
+
+      case 'object':
+        // Handle arrays - preserve order
+        if (Array.isArray(value)) {
+          return value
+            .map(item => this.normalizeObject(item))
+            .filter(item => item !== undefined);
+        }
+
+        // Handle regular objects - sort keys
+        const normalized: NormalizedObject = {};
+
+        // Sort keys alphabetically to ensure consistent ordering
+        const sortedKeys = Object.keys(value).sort();
+
+        for (const key of sortedKeys) {
+          const normalizedValue = this.normalizeObject(value[key]);
+          // Only include defined values
+          if (normalizedValue !== undefined) {
+            normalized[key.trim()] = normalizedValue;
+          }
+        }
+
+        return normalized;
+
+      default:
+        // Skip undefined, functions, symbols, etc.
+        return null;
+    }
+  }
+
+  /**
+   * Creates a deterministic hash of any JSON-serializable object
+   * @param obj - The object to hash
+   * @returns A hex string hash of the normalized object
+   * @throws Error if object cannot be safely converted to JSON
+   */
+  private hashObject(obj: any): string {
+    try {
+      // First attempt to normalize the object
+      const normalized = this.normalizeObject(obj);
+      // Convert to a deterministic string representation
+      const stringified = JSON.stringify(normalized);
+      // Create hash using SHA-256
+      return crypto.createHash('sha256').update(stringified).digest('hex');
+    } catch (error) {
+      throw new Error(
+        `Failed to hash object: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+  /**
+   * Produces a deterministic hash of a job based on a deterministic string
+   * serialisation of a job and the job type.
+   * @param payload The payload contents to hash
+   * @param jobType The jobType to hash
+   */
+  public async generateJobHash({
+    payload,
+    jobType,
+  }: {
+    payload: any;
+    jobType: JobType;
+  }) {
+    const payloadHash = this.hashObject(payload);
+    return crypto
+      .createHash('sha256')
+      .update(payloadHash)
+      .update(jobType)
+      .digest('hex');
   }
 }

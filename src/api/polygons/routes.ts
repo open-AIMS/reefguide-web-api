@@ -87,7 +87,7 @@ router.post(
         polygon: req.body.polygon,
       },
     });
-    res.status(201).json({
+    res.status(200).json({
       polygon: newPolygon,
     });
   },

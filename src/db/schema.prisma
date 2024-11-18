@@ -103,6 +103,8 @@ model Job {
     updated_at    DateTime        @updatedAt
     type          JobType
     status        JobStatus       @default(PENDING)
+    // What is the unique cache hash for this job?
+    hash          String
     // Who created this job
     user          User            @relation(fields: [user_id], references: [id])
     user_id       Int

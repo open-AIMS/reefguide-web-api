@@ -64,6 +64,7 @@ export const createJobSchema = z.object({
 });
 export const createJobResponseSchema = z.object({
   jobId: z.number(),
+  cached: z.boolean().default(false),
 });
 
 export const pollJobsSchema = z.object({
@@ -117,12 +118,22 @@ router.post(
   passport.authenticate('jwt', { session: false }),
   async (req, res: Response<CreateJobResponse>) => {
     if (!req.user) throw new UnauthorizedException();
+
+    // Check cache
+    const cachedJob = await jobService.checkJobCache(
+      req.body.inputPayload ?? {},
+      req.body.type,
+    );
+    if (cachedJob !== undefined) {
+      res.status(200).json({ jobId: cachedJob.id, cached: true });
+    }
+
     const job = await jobService.createJob(
       req.user.id,
       req.body.type,
       req.body.inputPayload,
     );
-    res.status(201).json({ jobId: job.id });
+    res.status(200).json({ jobId: job.id, cached: false });
   },
 );
 

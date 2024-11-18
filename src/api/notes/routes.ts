@@ -111,7 +111,7 @@ router.post(
       },
     });
 
-    res.status(201).json({
+    res.status(200).json({
       note: newNote,
     });
   },

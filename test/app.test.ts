@@ -14,6 +14,7 @@ import {
 } from './utils';
 import { JobStatus, JobType } from '@prisma/client';
 import { createJobResponseSchema } from '../src/api/jobs/routes';
+import { JobService } from '../src/api/services/jobs';
 
 afterAll(async () => {
   // clear when finished
@@ -114,7 +115,7 @@ describe('API', () => {
           const res = await request(app)
             .post('/api/auth/register')
             .send({ email: 'newuser@example.com', password: 'password123' })
-            .expect(201);
+            .expect(200);
 
           expect(res.body).toHaveProperty('userId');
         });
@@ -353,7 +354,7 @@ describe('API', () => {
                 ],
               },
             })
-            .expect(201);
+            .expect(200);
 
           expect(res.body.polygon).toHaveProperty('id');
           expect(res.body.polygon).toHaveProperty('polygon');
@@ -531,7 +532,7 @@ describe('API', () => {
               content: 'New test note',
               polygonId: polygonId,
             })
-            .expect(201);
+            .expect(200);
 
           expect(res.body.note).toHaveProperty('id');
           expect(res.body.note).toHaveProperty('content', 'New test note');
@@ -625,12 +626,11 @@ describe('API', () => {
             type: JobType.CRITERIA_POLYGONS,
             status: JobStatus.PENDING,
             user_id: user1Id,
-            input_payload: {
-              polygonIds: [1, 2, 3],
-              criteria: {
-                minArea: 100,
-              },
-            },
+            input_payload: {},
+            hash: await new JobService().generateJobHash({
+              payload: {},
+              jobType: 'CRITERIA_POLYGONS',
+            }),
           },
         });
         jobId = job.id;
@@ -663,7 +663,8 @@ describe('API', () => {
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {},
               })
-              .expect(201);
+              // This is cached
+              .expect(200);
 
             expect(res.body).toHaveProperty('jobId');
           });
@@ -699,7 +700,7 @@ describe('API', () => {
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {},
               })
-              .expect(201);
+              .expect(200);
 
             const res = await request(app).get('/api/jobs/poll').expect(200);
 
@@ -719,7 +720,7 @@ describe('API', () => {
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {},
               })
-              .expect(201);
+              .expect(200);
 
             const res = await request(app)
               .get('/api/jobs/poll')
@@ -756,7 +757,7 @@ describe('API', () => {
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {},
               })
-              .expect(201);
+              .expect(200);
             const parsedJob = createJobResponseSchema.parse(newJob.body);
             const res = await request(app)
               .post('/api/jobs/assign')
@@ -767,12 +768,17 @@ describe('API', () => {
               })
               .expect(200);
 
-            expect(res.body.assignment).toHaveProperty('job_id', newJob.body.jobId);
+            expect(res.body.assignment).toHaveProperty(
+              'job_id',
+              newJob.body.jobId,
+            );
             expect(res.body.assignment).toHaveProperty('storage_scheme', 'S3');
             expect(res.body.assignment).toHaveProperty('storage_uri');
 
             // Verify job status was updated
-            const job = await prisma.job.findUnique({ where: { id: newJob.body.jobId } });
+            const job = await prisma.job.findUnique({
+              where: { id: newJob.body.jobId },
+            });
             expect(job?.status).toBe(JobStatus.IN_PROGRESS);
           });
 

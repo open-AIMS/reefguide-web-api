@@ -292,7 +292,7 @@ All prefixed with `/auth`.
   }
   ```
 - **Response:**
-  - Success (201): `{ "userId": "string" }`
+  - Success (200): `{ "userId": "string" }`
   - Error (400): `{ "message": "User already exists" }`
 
 ## 2. Login
