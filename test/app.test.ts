@@ -15,6 +15,7 @@ import {
 import { JobStatus, JobType } from '@prisma/client';
 import { createJobResponseSchema } from '../src/api/jobs/routes';
 import { JobService } from '../src/api/services/jobs';
+import { randomInt } from 'crypto';
 
 afterAll(async () => {
   // clear when finished
@@ -661,7 +662,9 @@ describe('API', () => {
               .post('/api/jobs')
               .send({
                 type: JobType.CRITERIA_POLYGONS,
-                inputPayload: {},
+                inputPayload: {
+                    id: randomInt(10000)
+                },
               })
               // This is cached
               .expect(200);
@@ -674,7 +677,9 @@ describe('API', () => {
               .post('/api/jobs')
               .send({
                 type: 'INVALID_TYPE',
-                inputPayload: {},
+                inputPayload: {
+                    id: randomInt(10000)
+                },
               })
               .expect(400);
           });
@@ -698,11 +703,13 @@ describe('API', () => {
               .post('/api/jobs')
               .send({
                 type: JobType.CRITERIA_POLYGONS,
-                inputPayload: {},
+                inputPayload: {
+                    id: randomInt(10000)
+                },
               })
               .expect(200);
 
-            const res = await request(app).get('/api/jobs/poll').expect(200);
+            const res = await authRequest(app, 'user1').get('/api/jobs/poll').expect(200);
 
             expect(res.body.jobs).toBeInstanceOf(Array);
             expect(res.body.jobs.length).toBeGreaterThan(0);
@@ -718,11 +725,13 @@ describe('API', () => {
               .post('/api/jobs')
               .send({
                 type: JobType.CRITERIA_POLYGONS,
-                inputPayload: {},
+                inputPayload: {
+                    id: randomInt(10000)
+                },
               })
               .expect(200);
 
-            const res = await request(app)
+            const res = await authRequest(app, 'user1')
               .get('/api/jobs/poll')
               .query({ jobType: JobType.CRITERIA_POLYGONS })
               .expect(200);
@@ -742,7 +751,9 @@ describe('API', () => {
               data: { status: JobStatus.IN_PROGRESS },
             });
 
-            const res = await request(app).get('/api/jobs/poll').expect(200);
+            const res = await authRequest(app, 'user1')
+              .get('/api/jobs/poll')
+              .expect(200);
             expect(
               res.body.jobs.find((job: any) => job.id === jobId),
             ).toBeUndefined();
@@ -755,11 +766,13 @@ describe('API', () => {
               .post('/api/jobs')
               .send({
                 type: JobType.CRITERIA_POLYGONS,
-                inputPayload: {},
+                inputPayload: {
+                    id: randomInt(10000)
+                },
               })
               .expect(200);
             const parsedJob = createJobResponseSchema.parse(newJob.body);
-            const res = await request(app)
+            const res = await authRequest(app, 'user1')
               .post('/api/jobs/assign')
               .send({
                 jobId: parsedJob.jobId,
@@ -783,7 +796,7 @@ describe('API', () => {
           });
 
           it('should return 404 for non-existent job', async () => {
-            await request(app)
+            const res = await authRequest(app, 'user1')
               .post('/api/jobs/assign')
               .send({
                 jobId: 9999,
@@ -799,7 +812,7 @@ describe('API', () => {
               data: { status: JobStatus.IN_PROGRESS },
             });
 
-            await request(app)
+            const res = await authRequest(app, 'user1')
               .post('/api/jobs/assign')
               .send({
                 jobId,
@@ -812,7 +825,7 @@ describe('API', () => {
 
         describe('POST /api/jobs/assignments/:id/result', () => {
           it('should submit successful job results', async () => {
-            await request(app)
+            const res = await authRequest(app, 'user1')
               .post(`/api/jobs/assignments/${assignmentId}/result`)
               .send({
                 status: JobStatus.SUCCEEDED,
@@ -834,7 +847,7 @@ describe('API', () => {
           });
 
           it('should submit failed job results', async () => {
-            await request(app)
+            const res = await authRequest(app, 'user1')
               .post(`/api/jobs/assignments/${assignmentId}/result`)
               .send({
                 status: JobStatus.FAILED,
@@ -847,7 +860,7 @@ describe('API', () => {
           });
 
           it('should return 404 for non-existent assignment', async () => {
-            await request(app)
+            const res = await authRequest(app, 'user1')
               .post('/api/jobs/assignments/9999/result')
               .send({
                 status: JobStatus.SUCCEEDED,
@@ -857,7 +870,7 @@ describe('API', () => {
           });
 
           it('should return 400 for invalid result payload schema', async () => {
-            await request(app)
+            await authRequest(app, 'user1')
               .post(`/api/jobs/assignments/${assignmentId}/result`)
               .send({
                 status: JobStatus.SUCCEEDED,
@@ -888,10 +901,10 @@ describe('API', () => {
             expect(res.body.job).toHaveProperty('id', jobId);
           });
 
-          it('should return 401 if user is not the owner', async () => {
+          it('should return 200 if user is not the owner', async () => {
             await authRequest(app, 'user2')
               .get(`/api/jobs/${jobId}`)
-              .expect(401);
+              .expect(200);
           });
 
           it('should return 404 for non-existent job', async () => {

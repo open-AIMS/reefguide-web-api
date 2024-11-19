@@ -56,6 +56,7 @@ export const jobTypeSchemas: JobSchemaMap = {
     input: z
       .object({
         // TODO actual payload
+        id: z.number()
       })
       .strict(),
     result: z

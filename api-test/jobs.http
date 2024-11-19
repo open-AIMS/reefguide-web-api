@@ -50,6 +50,7 @@ Authorization: Bearer {{authToken}}
 {
     "type": "CRITERIA_POLYGONS",
     "inputPayload": {
+        "id" : 1
     }
 }
 
@@ -123,7 +124,9 @@ Content-Type: {{contentType}}
 
 {
     "type": "CRITERIA_POLYGONS",
-    "inputPayload": {}
+    "inputPayload": {
+        "id" : 1
+    }
 }
 
 ### Try to create job with invalid type
@@ -133,7 +136,9 @@ Authorization: Bearer {{authToken}}
 
 {
     "type": "INVALID_TYPE",
-    "inputPayload": {}
+    "inputPayload": {
+        "id" : 1
+    }
 }
 
 ### Try to create job with invalid payload schema
@@ -193,7 +198,9 @@ Authorization: Bearer {{authToken}}
 
 {
     "type": "CRITERIA_POLYGONS",
-    "inputPayload": {}
+    "inputPayload": {
+        "id" : 1
+    }
 }
 
 ### Try download (should fail as job is not complete)
