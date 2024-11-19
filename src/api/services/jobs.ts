@@ -1,7 +1,13 @@
 // jobs.ts
 import { z } from 'zod';
 import { prisma } from '../apiSetup';
-import { StorageScheme, JobType, JobStatus, Job } from '@prisma/client';
+import {
+  StorageScheme,
+  JobType,
+  JobStatus,
+  Job,
+  JobRequest,
+} from '@prisma/client';
 import {
   BadRequestException,
   NotFoundException,
@@ -210,28 +216,57 @@ export class JobService {
   }
 
   /**
-   * Creates a new job
+   * Creates a new job request and either returns a cached job or creates a new
+   * one
    * @param userId - ID of user creating the job
    * @param jobType - Type of job to create
    * @param inputPayload - Input parameters for the job
-   * @returns Created job record
+   * @returns Object containing the job and whether it was cached
    */
-  async createJob(userId: number, jobType: JobType, inputPayload: any) {
+  async createJobRequest(userId: number, jobType: JobType, inputPayload: any) {
     await this.validateJobPayload(jobType, inputPayload);
 
-    return prisma.job.create({
-      data: {
-        type: jobType,
-        user_id: userId,
-        input_payload: inputPayload,
-        status: JobStatus.PENDING,
-        // hash job contents
-        hash: await this.generateJobHash({
-          payload: inputPayload,
-          jobType: jobType,
-        }),
-      },
+    // Check cache first
+    const cachedJob = await this.checkJobCache(inputPayload, jobType);
+    const cacheHit = cachedJob !== undefined;
+
+    // Start a transaction to create both the job request and job if needed
+    const result = await prisma.$transaction(async prisma => {
+      let job: Job;
+
+      if (cacheHit && cachedJob) {
+        job = cachedJob;
+      } else {
+        // Create new job
+        job = await prisma.job.create({
+          data: {
+            type: jobType,
+            user_id: userId,
+            input_payload: inputPayload,
+            status: JobStatus.PENDING,
+            hash: await this.generateJobHash({
+              payload: inputPayload,
+              jobType: jobType,
+            }),
+          },
+        });
+      }
+
+      // Create job request record
+      const jobRequest = await prisma.jobRequest.create({
+        data: {
+          user_id: userId,
+          type: jobType,
+          input_payload: inputPayload,
+          cache_hit: cacheHit,
+          job_id: job.id,
+        },
+      });
+
+      return { job, jobRequest, cached: cacheHit };
     });
+
+    return result;
   }
 
   /**
@@ -360,12 +395,10 @@ export class JobService {
    * Retrieves detailed information about a job
    * @param jobId - ID of the job
    * @param userId - ID of requesting user
-   * @param isAdmin - Whether requesting user is an admin
    * @returns Job details including assignments and results
    * @throws NotFoundException if job doesn't exist
-   * @throws UnauthorizedException if user doesn't have access
    */
-  async getJobDetails(jobId: number, userId: number, isAdmin: boolean) {
+  async getJobDetails(jobId: number) {
     const job = await prisma.job.findUnique({
       where: { id: jobId },
       include: {
@@ -378,12 +411,6 @@ export class JobService {
     });
 
     if (!job) throw new NotFoundException('Job not found');
-    if (!isAdmin && job.user_id !== userId) {
-      throw new UnauthorizedException(
-        'You cannot view details about a job you do not own.',
-      );
-    }
-
     return job;
   }
 
@@ -457,6 +484,41 @@ export class JobService {
 
     return {
       jobs,
+      total,
+    };
+  }
+
+  /**
+   * Lists jobs with optional filtering by status and user
+   * If userId is undefined (admin query), returns all jobs
+   * If userId is provided, returns only jobs for that user
+   * @param params.userId - Optional user ID to filter by
+   * @param params.status - Optional status to filter by
+   * @returns Object containing jobs array and total count
+   */
+  async listRequests(params: {
+    userId?: number;
+  }): Promise<{ jobs: JobRequest[]; total: number }> {
+    // Build where clause based on parameters
+    const where = {
+      ...(params.userId && { user_id: params.userId }),
+    };
+
+    const [requests, total] = await Promise.all([
+      prisma.jobRequest.findMany({
+        where,
+        include: {
+          job: { include: { assignments: true, results: true } },
+        },
+        orderBy: [{ created_at: 'desc' }],
+        // Reasonable page size for initial implementation
+        take: 50,
+      }),
+      prisma.jobRequest.count({ where }),
+    ]);
+
+    return {
+      jobs: requests,
       total,
     };
   }

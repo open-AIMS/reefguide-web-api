@@ -25,6 +25,16 @@ export const jobAssignmentSchema = z.object({
   completed_at: z.date().nullable(),
 });
 
+export const jobRequestSchema = z.object({
+  id: z.number(),
+  created_at: z.date(),
+  user_id: z.number(),
+  type: z.nativeEnum(JobType),
+  input_payload: z.any(),
+  cache_hit: z.boolean(),
+  job_id: z.number(),
+});
+
 export const jobResultSchema = z.object({
   id: z.number(),
   created_at: z.date(),
@@ -64,7 +74,8 @@ export const createJobSchema = z.object({
 });
 export const createJobResponseSchema = z.object({
   jobId: z.number(),
-  cached: z.boolean().default(false),
+  cached: z.boolean(),
+  requestId: z.number(),
 });
 
 export const pollJobsSchema = z.object({
@@ -116,24 +127,20 @@ router.post(
     body: createJobSchema,
   }),
   passport.authenticate('jwt', { session: false }),
-  async (req, res: Response<CreateJobResponse>) => {
+  async (req, res: Response<z.infer<typeof createJobResponseSchema>>) => {
     if (!req.user) throw new UnauthorizedException();
 
-    // Check cache
-    const cachedJob = await jobService.checkJobCache(
-      req.body.inputPayload ?? {},
-      req.body.type,
-    );
-    if (cachedJob !== undefined) {
-      res.status(200).json({ jobId: cachedJob.id, cached: true });
-    }
-
-    const job = await jobService.createJob(
+    const { job, jobRequest, cached } = await jobService.createJobRequest(
       req.user.id,
       req.body.type,
       req.body.inputPayload,
     );
-    res.status(200).json({ jobId: job.id, cached: false });
+
+    res.status(200).json({
+      jobId: job.id,
+      cached,
+      requestId: jobRequest.id,
+    });
   },
 );
 
@@ -185,6 +192,23 @@ router.post(
   },
 );
 
+router.get(
+  '/requests',
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    if (!req.user) throw new UnauthorizedException();
+
+    // is the user an admin?
+    const isAdmin = userIsAdmin(req.user);
+    res.json({
+      jobRequests: jobService.listRequests({
+        // Only filter by user if not admin
+        userId: !isAdmin ? req.user.id : undefined,
+      }),
+    });
+  },
+);
+
 router.post(
   '/assignments/:id/result',
   processRequest({
@@ -211,11 +235,7 @@ router.get(
   async (req, res: Response<JobDetailsResponse>) => {
     if (!req.user) throw new UnauthorizedException();
     const jobId = parseInt(req.params.id);
-    const job = await jobService.getJobDetails(
-      jobId,
-      req.user.id,
-      userIsAdmin(req.user),
-    );
+    const job = await jobService.getJobDetails(jobId);
     res.json({ job });
   },
 );
@@ -256,11 +276,7 @@ router.get(
       : config.s3.urlExpirySeconds;
 
     // Get job details with assignments and results
-    const job = await jobService.getJobDetails(
-      jobId,
-      req.user.id,
-      userIsAdmin(req.user),
-    );
+    const job = await jobService.getJobDetails(jobId);
 
     // Check if job has any results
     if (

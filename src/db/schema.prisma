@@ -26,6 +26,7 @@ model User {
     notes         PolygonNote[]
     refreshTokens RefreshToken[]
     jobs          Job[]
+    jobRequests   JobRequest[]
 }
 
 // User submitted polygon - has notes
@@ -97,6 +98,25 @@ enum JobStatus {
     TIMED_OUT
 }
 
+// Tracks when a user requests to create a job
+model JobRequest {
+    id            Int      @id @default(autoincrement())
+    created_at    DateTime @default(now())
+    // Who made the request
+    user          User     @relation(fields: [user_id], references: [id])
+    user_id       Int
+    // What type of job was requested
+    type          JobType
+    // The input parameters requested
+    input_payload Json
+    // Did this request hit an existing cache entry?
+    cache_hit     Boolean
+    // If cache hit, what was the existing job?
+    // If cache miss, what new job was created?
+    job           Job      @relation(fields: [job_id], references: [id])
+    job_id        Int
+}
+
 model Job {
     id            Int             @id @default(autoincrement())
     created_at    DateTime        @default(now())
@@ -114,6 +134,9 @@ model Job {
     // Related entities
     assignments   JobAssignment[]
     results       JobResult[]
+
+    // Link to the original request that created this job
+    requests JobRequest[]
 }
 
 // JobAssignment tracks attempts to process a job
