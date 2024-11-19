@@ -171,6 +171,7 @@ router.get(
   processRequest({
     query: pollJobsSchema,
   }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res: Response<PollJobsResponse>) => {
     const jobs = await jobService.pollJobs(req.query.jobType as JobType);
     res.json({ jobs });
@@ -182,6 +183,7 @@ router.post(
   processRequest({
     body: assignJobSchema,
   }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res: Response<AssignJobResponse>) => {
     const assignment = await jobService.assignJob(
       req.body.jobId,
@@ -194,6 +196,7 @@ router.post(
 
 router.get(
   '/requests',
+  processRequest({}),
   passport.authenticate('jwt', { session: false }),
   async (req, res) => {
     if (!req.user) throw new UnauthorizedException();
@@ -215,6 +218,7 @@ router.post(
     params: z.object({ id: z.string() }),
     body: submitResultSchema,
   }),
+  passport.authenticate('jwt', { session: false }),
   async (req, res: Response<void>) => {
     const assignmentId = parseInt(req.params.id);
     await jobService.submitResult(
