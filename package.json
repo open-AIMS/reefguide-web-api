@@ -12,7 +12,7 @@
     "dev": "env-cmd ts-node-dev --files src/api/index.ts",
     "build": "tsc",
     "lint": "eslint --fix src test",
-    "test": "jest",
+    "test": "jest --detectOpenHandles",
     "typecheck": "tsc --noEmit",
     "prisma-generate": "prisma generate",
     "studio": "prisma studio",

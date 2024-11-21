@@ -56,14 +56,6 @@ api.use('/admin', adminRoutes);
 api.use('/users', userRoutes);
 api.use('/jobs', jobRoutes);
 
-const port = config.port || 5000;
-
-app.listen(port, () => {
-  /* eslint-disable no-console */
-  console.log(`Listening: http://localhost:${port}`);
-  /* eslint-enable no-console */
-});
-
 // API base router
 app.use('/api', api);
 
