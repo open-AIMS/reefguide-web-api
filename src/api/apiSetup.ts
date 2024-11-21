@@ -1,15 +1,14 @@
+import { PrismaClient } from '@prisma/client';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { passport } from './auth/passportConfig';
-import * as middlewares from './middlewares';
-import { PrismaClient } from '@prisma/client';
-import { config } from './config';
 import { router as adminRoutes } from './admin/routes';
 import { getJwks } from './auth/jwtUtils';
+import { passport } from './auth/passportConfig';
 import { router as authRoutes } from './auth/routes';
 import { router as jobRoutes } from './jobs/routes';
+import * as middlewares from './middlewares';
 import { router as noteRoutes } from './notes/routes';
 import { router as polygonRoutes } from './polygons/routes';
 import { router as userRoutes } from './users/routes';
