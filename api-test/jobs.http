@@ -61,15 +61,18 @@ Authorization: Bearer {{authToken}}
 # @name pollJobs
 GET {{baseUrl}}/jobs/poll
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 ### Poll for specific job type
 GET {{baseUrl}}/jobs/poll?jobType=CRITERIA_POLYGONS
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 ### Assign job to worker
 # @name assignJob
 POST {{baseUrl}}/jobs/assign
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 {
     "jobId": {{jobId}},

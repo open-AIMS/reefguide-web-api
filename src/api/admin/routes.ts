@@ -181,7 +181,7 @@ router.post(
   },
 );
 
-/** 
+/**
  * Forces the DB to perform its seed initialisation
  */
 router.get(
@@ -192,5 +192,7 @@ router.get(
     // if the user is admin, allow forceful re-init in case of out of date admin
     // or other service creds
     await initialiseAdmins();
+    res.status(200).send();
+    return;
   },
 );
