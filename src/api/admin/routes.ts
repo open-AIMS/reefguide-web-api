@@ -191,6 +191,6 @@ router.get(
   async (req, res) => {
     // if the user is admin, allow forceful re-init in case of out of date admin
     // or other service creds
-    initialiseAdmins();
+    await initialiseAdmins();
   },
 );
