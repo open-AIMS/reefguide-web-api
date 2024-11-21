@@ -663,7 +663,7 @@ describe('API', () => {
               .send({
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {
-                    id: randomInt(10000)
+                  id: randomInt(10000),
                 },
               })
               // This is cached
@@ -678,7 +678,7 @@ describe('API', () => {
               .send({
                 type: 'INVALID_TYPE',
                 inputPayload: {
-                    id: randomInt(10000)
+                  id: randomInt(10000),
                 },
               })
               .expect(400);
@@ -704,12 +704,14 @@ describe('API', () => {
               .send({
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {
-                    id: randomInt(10000)
+                  id: randomInt(10000),
                 },
               })
               .expect(200);
 
-            const res = await authRequest(app, 'user1').get('/api/jobs/poll').expect(200);
+            const res = await authRequest(app, 'user1')
+              .get('/api/jobs/poll')
+              .expect(200);
 
             expect(res.body.jobs).toBeInstanceOf(Array);
             expect(res.body.jobs.length).toBeGreaterThan(0);
@@ -726,7 +728,7 @@ describe('API', () => {
               .send({
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {
-                    id: randomInt(10000)
+                  id: randomInt(10000),
                 },
               })
               .expect(200);
@@ -767,7 +769,7 @@ describe('API', () => {
               .send({
                 type: JobType.CRITERIA_POLYGONS,
                 inputPayload: {
-                    id: randomInt(10000)
+                  id: randomInt(10000),
                 },
               })
               .expect(200);
@@ -796,7 +798,7 @@ describe('API', () => {
           });
 
           it('should return 404 for non-existent job', async () => {
-            const res = await authRequest(app, 'user1')
+            await authRequest(app, 'user1')
               .post('/api/jobs/assign')
               .send({
                 jobId: 9999,
@@ -812,7 +814,7 @@ describe('API', () => {
               data: { status: JobStatus.IN_PROGRESS },
             });
 
-            const res = await authRequest(app, 'user1')
+            await authRequest(app, 'user1')
               .post('/api/jobs/assign')
               .send({
                 jobId,
@@ -825,7 +827,7 @@ describe('API', () => {
 
         describe('POST /api/jobs/assignments/:id/result', () => {
           it('should submit successful job results', async () => {
-            const res = await authRequest(app, 'user1')
+            await authRequest(app, 'user1')
               .post(`/api/jobs/assignments/${assignmentId}/result`)
               .send({
                 status: JobStatus.SUCCEEDED,
@@ -847,7 +849,7 @@ describe('API', () => {
           });
 
           it('should submit failed job results', async () => {
-            const res = await authRequest(app, 'user1')
+            await authRequest(app, 'user1')
               .post(`/api/jobs/assignments/${assignmentId}/result`)
               .send({
                 status: JobStatus.FAILED,
@@ -860,7 +862,7 @@ describe('API', () => {
           });
 
           it('should return 404 for non-existent assignment', async () => {
-            const res = await authRequest(app, 'user1')
+            await authRequest(app, 'user1')
               .post('/api/jobs/assignments/9999/result')
               .send({
                 status: JobStatus.SUCCEEDED,
