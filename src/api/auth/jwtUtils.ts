@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { JwtContents, RefreshTokenContents } from '../../interfaces/Auth';
+import { JwtContents, RefreshTokenContents } from '../types/auth';
 import { prisma } from '../apiSetup';
 import { config } from '../config';
 import { base64encode, encodeRefreshToken } from './utils';

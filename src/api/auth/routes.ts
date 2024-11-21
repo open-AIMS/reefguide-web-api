@@ -9,7 +9,7 @@ import {
   RegisterResponse,
   TokenInputSchema,
   TokenResponse,
-} from '../../interfaces/Auth';
+} from '../types/auth';
 import { prisma } from '../apiSetup';
 import * as Exceptions from '../exceptions';
 import { generateRefreshToken, signJwt } from './jwtUtils';

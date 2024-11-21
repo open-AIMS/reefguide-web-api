@@ -148,8 +148,6 @@ export class ReefguideWebApiStack extends cdk.Stack {
       vpc: networking.vpc,
       cluster: cluster,
       apiEndpoint: webAPI.endpoint,
-      // TODO securely do this and pass real value
-      apiAuthToken: 'your-auth-token',
       capacityManager: {
         cpu: 256,
         memoryLimitMiB: 512,

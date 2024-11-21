@@ -17,7 +17,10 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY src/api ./src/api
+COPY src/db ./src/db
+COPY src/example-worker ./src/example-worker
+COPY src/job-manager ./src/job-manager
 
 # Expose port for health checks
 EXPOSE ${PORT}

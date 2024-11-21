@@ -5,7 +5,7 @@ import { prisma } from '../apiSetup';
 import { passport } from '../auth/passportConfig';
 import { userIsAdmin } from '../auth/utils';
 import { NotFoundException, UnauthorizedException } from '../exceptions';
-import { GeoJSONPolygonSchema } from '../../interfaces/GeoJSON';
+import { GeoJSONPolygonSchema } from '../types/geoJson';
 require('express-async-errors');
 
 export const router = express.Router();

@@ -1,34 +1,21 @@
 // jobs.ts
-import { z } from 'zod';
-import { prisma } from '../apiSetup';
 import {
-  StorageScheme,
-  JobType,
-  JobStatus,
   Job,
   JobRequest,
+  JobStatus,
+  JobType,
+  StorageScheme,
 } from '@prisma/client';
+import crypto from 'crypto';
+import { z } from 'zod';
+import { prisma } from '../apiSetup';
+import { config } from '../config';
 import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
 } from '../exceptions';
-import { config } from '../config';
-import crypto from 'crypto';
-
-// Type definition for any JSON-serializable value
-type JSONValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JSONValue[]
-  | { [key: string]: JSONValue };
-
-// Interface for the normalized object structure
-interface NormalizedObject {
-  [key: string]: JSONValue;
-}
+import { hashObject } from '../util';
 
 /**
  * Type definition mapping job types to their input/output schemas
@@ -56,7 +43,7 @@ export const jobTypeSchemas: JobSchemaMap = {
     input: z
       .object({
         // TODO actual payload
-        id: z.number()
+        id: z.number(),
       })
       .strict(),
     result: z
@@ -435,9 +422,9 @@ export class JobService {
       throw new UnauthorizedException();
     }
 
-    if (job.status === JobStatus.SUCCEEDED || job.status === JobStatus.FAILED) {
+    if (!(job.status === 'PENDING')) {
       throw new BadRequestException(
-        'Cannot cancel completed (succeeded or failed) job',
+        'Cannot cancel jobs in a non PENDING state',
       );
     }
 
@@ -525,84 +512,6 @@ export class JobService {
   }
 
   /**
-   * Recursively normalizes an object to ensure deterministic serialization
-   * @param value - The value to normalize
-   * @returns A normalized version of the input
-   */
-  private normalizeObject(value: any): JSONValue {
-    // Handle null early
-    if (value === null) {
-      return null;
-    }
-
-    // Handle different types
-    switch (typeof value) {
-      case 'string':
-        // Normalize string whitespace
-        return value.trim().replace(/\s+/g, ' ');
-
-      case 'number':
-        // Handle NaN and Infinity
-        if (!Number.isFinite(value)) {
-          return null;
-        }
-        return value;
-
-      case 'boolean':
-        return value;
-
-      case 'object':
-        // Handle arrays - preserve order
-        if (Array.isArray(value)) {
-          return value
-            .map(item => this.normalizeObject(item))
-            .filter(item => item !== undefined);
-        }
-
-        // Handle regular objects - sort keys
-        const normalized: NormalizedObject = {};
-
-        // Sort keys alphabetically to ensure consistent ordering
-        const sortedKeys = Object.keys(value).sort();
-
-        for (const key of sortedKeys) {
-          const normalizedValue = this.normalizeObject(value[key]);
-          // Only include defined values
-          if (normalizedValue !== undefined) {
-            normalized[key.trim()] = normalizedValue;
-          }
-        }
-
-        return normalized;
-
-      default:
-        // Skip undefined, functions, symbols, etc.
-        return null;
-    }
-  }
-
-  /**
-   * Creates a deterministic hash of any JSON-serializable object
-   * @param obj - The object to hash
-   * @returns A hex string hash of the normalized object
-   * @throws Error if object cannot be safely converted to JSON
-   */
-  private hashObject(obj: any): string {
-    try {
-      // First attempt to normalize the object
-      const normalized = this.normalizeObject(obj);
-      // Convert to a deterministic string representation
-      const stringified = JSON.stringify(normalized);
-      // Create hash using SHA-256
-      return crypto.createHash('sha256').update(stringified).digest('hex');
-    } catch (error) {
-      throw new Error(
-        `Failed to hash object: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
-
-  /**
    * Produces a deterministic hash of a job based on a deterministic string
    * serialisation of a job and the job type.
    * @param payload The payload contents to hash
@@ -615,7 +524,7 @@ export class JobService {
     payload: any;
     jobType: JobType;
   }) {
-    const payloadHash = this.hashObject(payload);
+    const payloadHash = hashObject(payload);
     return crypto
       .createHash('sha256')
       .update(payloadHash)

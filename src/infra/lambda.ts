@@ -2,6 +2,7 @@
 import schema from '../db/schema.prisma';
 // @ts-ignore
 import x from '../../node_modules/.prisma/client/libquery_engine-rhel-openssl-1.0.x.so.node';
+
 if (process.env.NODE_ENV !== 'production') {
   console.debug(schema, x);
 }
@@ -96,15 +97,11 @@ async function getJsonSecret<T = any>(secretId: string): Promise<T> {
   let secret: string | undefined;
   try {
     secret = await getSecret(secretId);
-    console.log('Received secret type:', typeof secret);
-    console.log('Secret length:', secret?.length || 0);
-    console.log('Secret first 10 chars:', secret?.substring(0, 10) + '...');
 
     if (!secret) {
       console.error('Received empty secret');
       throw new Error('Empty secret received');
     }
-
     console.log('Attempting to parse secret as JSON...');
     const parsed = JSON.parse(secret);
     console.log('Successfully parsed JSON. Result type:', typeof parsed);
@@ -177,21 +174,6 @@ exports.handler = async (event: any, context: any) => {
     console.log('Initializing new handler');
     try {
       // Log environment variables (excluding sensitive values)
-      console.log('Environment variables present:', {
-        API_SECRETS_ARN: process.env.API_SECRETS_ARN
-          ? '[PRESENT]'
-          : '[MISSING]',
-        WORKER_CREDS_ARN: process.env.WORKER_CREDS_ARN
-          ? '[PRESENT]'
-          : '[MISSING]',
-        MANAGER_CREDS_ARN: process.env.MANAGER_CREDS_ARN
-          ? '[PRESENT]'
-          : '[MISSING]',
-        ADMIN_CREDS_ARN: process.env.ADMIN_CREDS_ARN
-          ? '[PRESENT]'
-          : '[MISSING]',
-      });
-
       const secretArn = process.env.API_SECRETS_ARN;
       const workerCredsArn = process.env.WORKER_CREDS_ARN;
       const managerCredsArn = process.env.MANAGER_CREDS_ARN;
@@ -247,9 +229,10 @@ exports.handler = async (event: any, context: any) => {
       });
 
       console.log('Importing API setup...');
-      const { default: app, initialiseAdmins } = await import(
-        '../api/apiSetup'
-      );
+      const { default: app } = await import('../api/apiSetup');
+
+      console.log('Importing initialise methods');
+      const { initialiseAdmins } = await import('../api/initialise');
 
       console.log('Initializing admins...');
       await initialiseAdmins();
