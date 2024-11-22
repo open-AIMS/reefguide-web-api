@@ -292,7 +292,7 @@ All prefixed with `/auth`.
   }
   ```
 - **Response:**
-  - Success (201): `{ "userId": "string" }`
+  - Success (200): `{ "userId": "string" }`
   - Error (400): `{ "message": "User already exists" }`
 
 ## 2. Login
@@ -671,3 +671,210 @@ The main repository contains a configuration management script that interacts wi
 1. Use version control: Commit and push changes to this repository regularly.
 2. Document changes: Use clear, descriptive commit messages and update this README if you make structural changes.
 3. Minimize secrets: Avoid storing sensitive information like passwords or API keys directly in these files. Instead, use secure secret management solutions.
+
+# Job System
+
+A job processing system built on top of Postgres and ECS. Uses Postgres as a job queue and tracks job status, assignments, and results.
+
+## Architecture
+
+The system consists of three main components:
+
+1. Job Queue (Postgres table)
+2. API Server (Express)
+3. Worker Nodes (ECS Tasks)
+
+### Key Files
+
+```
+src/
+├── api/
+│   ├── routes/
+│   │   └── jobs.ts      # API routes for job management
+│   └── services/
+│       └── jobs.ts      # Business logic for job processing
+prisma/
+└── schema.prisma        # Database schema including job tables
+```
+
+### Entity Relationships
+
+```mermaid
+erDiagram
+    Job ||--o{ JobAssignment : "has"
+    Job ||--o{ JobResult : "has"
+    JobAssignment ||--o| JobResult : "produces"
+    User ||--o{ Job : "creates"
+
+    Job {
+        int id
+        datetime created_at
+        datetime updated_at
+        enum type
+        enum status
+        int user_id
+        json input_payload
+    }
+
+    JobAssignment {
+        int id
+        datetime created_at
+        datetime updated_at
+        int job_id
+        string ecs_task_arn
+        string ecs_cluster_arn
+        datetime expires_at
+        enum storage_scheme
+        string storage_uri
+        datetime heartbeat_at
+        datetime completed_at
+    }
+
+    JobResult {
+        int id
+        datetime created_at
+        int job_id
+        int assignment_id
+        json result_payload
+        enum storage_scheme
+        string storage_uri
+        json metadata
+    }
+```
+
+## Job Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Job Created
+
+    PENDING --> IN_PROGRESS: Worker Assignment
+    note right of IN_PROGRESS
+        Job is assigned to ECS task
+        Has 1:1 assignment record
+    end note
+
+    IN_PROGRESS --> SUCCEEDED: Task Completed
+    IN_PROGRESS --> FAILED: Task Error
+    IN_PROGRESS --> TIMED_OUT: Assignment Expired
+
+    PENDING --> CANCELLED: User Cancelled
+    IN_PROGRESS --> CANCELLED: User Cancelled
+
+    SUCCEEDED --> [*]
+    FAILED --> [*]
+    CANCELLED --> [*]
+    TIMED_OUT --> [*]
+```
+
+## Job Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    critical Launch Job
+    User->>Web API: launch(payload)
+    Web API->>DB: create Job
+    DB-->>Web API: job_id
+    Web API-->>User: job_id
+    end
+
+    critical Job Manager Polling
+    loop Poll loop
+    Manager->>Web API: /poll
+    Web API->>DB: query (unassigned)
+    DB-->>Web API: jobs[]
+    Web API-->>Manager: jobs[]
+    Note left of Manager: If jobs.length > 0...
+    end
+
+    critical Job Manager Capacity
+    option Cooldown period complete
+    Manager->>ECS: launch task type
+    Note left of Manager: Task dfn corresponds<br/>to task type
+    end
+
+
+    critical Worker lifecycle
+
+    loop Worker poll loop
+    Worker->>Web API: /poll
+    Web API-->>Worker: jobs[]
+    end
+
+    option Assign job
+    Worker->>Web API: assign(task info)
+    Web API->>DB: Create assignment<br/>update status
+
+    option Complete job
+    Worker->>Worker: Start job
+    activate Worker
+    Worker-->>Worker: Job finished
+    deactivate Worker
+
+    option Store result files
+    Note left of Worker: job includes S3 location
+    Worker->>S3: Upload files
+
+    option Report result
+    Worker->>Web API: Result(status, payload)
+    Web API->>DB: Create JobResult<br/>Update JobAssignment<br/>Update Job
+
+    end
+
+    critical User workflow
+    loop User status checks
+    User->>Web API: GET /:id
+    Web API-->>User: Job status + details
+    end
+
+    option complete task
+    User->>Web API: GET /:id
+    Web API-->>User: Job results
+    User->>Web API: GET /:id/download
+    Web API->>S3: Presign URLs
+    S3-->>Web API: Presigned URLs[]
+    Web API-->>User: urls: Map<key, url>
+    User->>User: download files
+    User->>User: visualise results
+    end
+
+    end
+```
+
+## API Routes
+
+### Job Management
+
+- POST /api/jobs - Create new job
+- GET /api/jobs/:id - Get job details
+- POST /api/jobs/:id/cancel - Cancel a job
+
+### Worker Node API
+
+- GET /api/jobs/poll - Get available jobs, optional query param: jobType. Returns jobs that are PENDING and have no valid assignments.
+- POST /api/jobs/assign - Assign job to worker. Creates assignment record with storage location.
+- POST /api/jobs/assignments/:id/result - Submit job results - Updates job status and stores result if successful.
+
+## Job Types
+
+Each job type must define:
+
+1. Input payload schema (required)
+2. Result payload schema (optional)
+
+Example job type configuration:
+
+```typescript
+const jobTypeSchemas = {
+  CRITERIA_POLYGONS: {
+    input: z.object({
+      fieldsHere: z.string(),
+    }),
+    result: z
+      .object({
+        fieldsHere: z.string(),
+      })
+      .optional(),
+  },
+};
+```

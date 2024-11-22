@@ -27,9 +27,13 @@ export interface WebAPIProps {
   /** The configuration object for the web api service */
   config: WebAPIConfig;
   /** The name of the ECS cluster service which hosts the Julia compute nodes */
-  ecs_cluster_name: string;
+  ecsClusterName: string;
   /** The name of the ECS service which hosts the Julia compute nodes */
-  ecs_service_name: string;
+  ecsServiceName: string;
+  /** Creds to initialise for the manager and worker services */
+  managerCreds: sm.Secret;
+  workerCreds: sm.Secret;
+  adminCreds: sm.Secret;
 }
 
 /**
@@ -46,7 +50,7 @@ export class WebAPI extends Construct {
   public readonly endpoint: string;
 
   /** The underlying lambda function */
-  private readonly lambda: lambda.Function;
+  public readonly lambda: lambda.Function;
 
   constructor(scope: Construct, id: string, props: WebAPIProps) {
     super(scope, id);
@@ -87,10 +91,13 @@ export class WebAPI extends Construct {
         PORT: String(this.internalPort),
         NODE_ENV: config.nodeEnv,
         API_SECRETS_ARN: config.apiSecretsArn,
+        WORKER_CREDS_ARN: props.workerCreds.secretArn,
+        MANAGER_CREDS_ARN: props.managerCreds.secretArn,
+        ADMIN_CREDS_ARN: props.adminCreds.secretArn,
         // Fully qualified domain for API domain - this defines the JWT iss
         API_DOMAIN: this.endpoint,
-        ECS_CLUSTER_NAME: props.ecs_cluster_name,
-        ECS_SERVICE_NAME: props.ecs_service_name,
+        ECS_CLUSTER_NAME: props.ecsClusterName,
+        ECS_SERVICE_NAME: props.ecsServiceName,
       },
       timeout: cdk.Duration.seconds(30),
       bundling: {
@@ -108,6 +115,11 @@ export class WebAPI extends Construct {
 
     // allow read of db secrets
     dbSecret.grantRead(this.lambda);
+
+    // Initialisation creds
+    props.managerCreds.grantRead(this.lambda);
+    props.workerCreds.grantRead(this.lambda);
+    props.adminCreds.grantRead(this.lambda);
 
     // Create an API Gateway REST API
     const restApi = new apigateway.RestApi(this, 'apigw', {
@@ -170,5 +182,9 @@ export class WebAPI extends Construct {
 
     // Add the policy to the Lambda's role
     this.lambda.addToRolePolicy(ecsPolicy);
+  }
+
+  public addEnv(key: string, val: string): void {
+    this.lambda.addEnvironment(key, val);
   }
 }

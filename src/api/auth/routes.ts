@@ -9,7 +9,7 @@ import {
   RegisterResponse,
   TokenInputSchema,
   TokenResponse,
-} from '../../interfaces/Auth';
+} from '../types/auth';
 import { prisma } from '../apiSetup';
 import * as Exceptions from '../exceptions';
 import { generateRefreshToken, signJwt } from './jwtUtils';
@@ -33,7 +33,7 @@ router.post(
   async (req: Request, res: Response<RegisterResponse>) => {
     const { password, email } = req.body;
     const newUserId = await registerUser({ email, password, roles: [] });
-    res.status(201).json({ userId: newUserId });
+    res.status(200).json({ userId: newUserId });
   },
 );
 

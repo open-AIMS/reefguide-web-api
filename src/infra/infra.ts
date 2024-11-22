@@ -7,6 +7,8 @@ import { ReefGuideAPI } from './components/reefGuideAPI';
 import { WebAPI } from './components/webAPI';
 import { DeploymentConfig } from './infra_config';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
+import { JobSystem } from './components/jobs';
+import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -24,6 +26,34 @@ export class ReefguideWebApiStack extends cdk.Stack {
 
     // Pull out main config
     const config = props.config;
+
+    /**
+     * Generates an AWS secret manager secret for a given email to be used as
+     * seeded credentials by the API
+     * @param id The id of the secret to generate
+     * @param email The email to use as username field
+     * @returns Secret generated with {username: <email>, password: <random>}
+     */
+    const credBuilder = (id: string, email: string) => {
+      return new sm.Secret(this, id, {
+        // {username, password}
+        generateSecretString: {
+          passwordLength: 16,
+          secretStringTemplate: JSON.stringify({
+            username: email,
+          }),
+          excludePunctuation: true,
+          includeSpace: false,
+          generateStringKey: 'password',
+        },
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      });
+    };
+
+    // Manager service creds
+    const managerCreds = credBuilder('manager-userpass', 'manager@service.com');
+    const adminCreds = credBuilder('admin-userpass', 'admin@service.com');
+    const workerCreds = credBuilder('worker-userpass', 'worker@service.com');
 
     // DNS SETUP
     // =========
@@ -78,6 +108,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
       sharedBalancer: networking.sharedBalancer,
       config: config.reefGuideAPI,
     });
+    const cluster = reefGuideApi.fargateService.cluster;
 
     // Web API
     const webAPI = new WebAPI(this, 'web-api', {
@@ -85,10 +116,13 @@ export class ReefguideWebApiStack extends cdk.Stack {
       config: config.webAPI,
       domainName: domains.webAPI,
       hz: hz,
+      managerCreds: managerCreds,
+      workerCreds: workerCreds,
+      adminCreds: adminCreds,
 
       // Expose the cluster information to web API so that it can control it
-      ecs_cluster_name: reefGuideApi.fargateService.cluster.clusterName,
-      ecs_service_name: reefGuideApi.fargateService.serviceName,
+      ecsClusterName: cluster.clusterName,
+      ecsServiceName: reefGuideApi.fargateService.serviceName,
     });
 
     // Let the Web API interact with the Julia cluster
@@ -109,5 +143,35 @@ export class ReefguideWebApiStack extends cdk.Stack {
         ARC_GIS_ENDPOINTS,
       ),
     });
+
+    const jobSystem = new JobSystem(this, 'job-system', {
+      vpc: networking.vpc,
+      cluster: cluster,
+      apiEndpoint: webAPI.endpoint,
+      capacityManager: {
+        cpu: 256,
+        memoryLimitMiB: 512,
+        pollIntervalMs: 5000,
+      },
+      jobTypes: {
+        CRITERIA_POLYGONS: {
+          cpu: 512,
+          memoryLimitMiB: 1024,
+          serverPort: 3000,
+          command: ['npm', 'run', 'start-worker'],
+          desiredMinCapacity: 0,
+          desiredMaxCapacity: 5,
+          scaleUpThreshold: 1,
+          cooldownSeconds: 60,
+        },
+      },
+      workerCreds,
+      managerCreds,
+    });
+
+    // let the webAPI read write the data storage bucket and tell it about
+    // storage bucket
+    webAPI.addEnv('S3_BUCKET_NAME', jobSystem.storageBucket.bucketName);
+    jobSystem.storageBucket.grantReadWrite(webAPI.lambda);
   }
 }

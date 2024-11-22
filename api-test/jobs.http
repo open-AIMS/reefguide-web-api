@@ -1,0 +1,211 @@
+@baseUrl = {{$dotenv API_BASE_URL}}
+@contentType = application/json
+
+### Load environment variables
+# @name loadEnv
+GET {{baseUrl}}
+Content-Type: {{contentType}}
+
+### Register a new user
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+    "email": "testuser@example.com",
+    "password": "securepassword123"
+}
+
+### Login with the registered user
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+    "email": "testuser@example.com",
+    "password": "securepassword123"
+}
+
+### Store the JWT token from the login response
+@authToken = {{login.response.body.token}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+### Use refresh to get new token
+# @name refresh
+POST {{baseUrl}}/auth/token
+Content-Type: {{contentType}}
+
+{
+    "refreshToken" : "{{refreshToken}}"
+}
+
+### JOB SYSTEM TESTS
+
+### Create a new criteria polygons job
+# @name createJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "CRITERIA_POLYGONS",
+    "inputPayload": {
+        "id" : 1
+    }
+}
+
+### Store the job ID for further operations
+@jobId = {{createJob.response.body.jobId}}
+
+### Poll for available jobs (worker endpoint)
+# @name pollJobs
+GET {{baseUrl}}/jobs/poll
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+### Poll for specific job type
+GET {{baseUrl}}/jobs/poll?jobType=CRITERIA_POLYGONS
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+### Assign job to worker
+# @name assignJob
+POST {{baseUrl}}/jobs/assign
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "jobId": {{jobId}},
+    "ecsTaskArn": "arn:aws:ecs:region:account:task/cluster/task-id",
+    "ecsClusterArn": "arn:aws:ecs:region:account:cluster/cluster-name"
+}
+
+### Store the assignment ID
+@assignmentId = {{assignJob.response.body.assignment.id}}
+
+### Submit successful job result
+POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
+Content-Type: {{contentType}}
+
+{
+    "status": "SUCCEEDED",
+    "resultPayload": {
+    }
+}
+
+### Submit failed job result
+POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
+Content-Type: {{contentType}}
+
+{
+    "status": "FAILED",
+    "resultPayload": {
+    }
+}
+
+### Get job details (as owner)
+GET {{baseUrl}}/jobs/{{jobId}}
+Authorization: Bearer {{authToken}}
+
+### Cancel a job
+POST {{baseUrl}}/jobs/{{jobId}}/cancel
+Authorization: Bearer {{authToken}}
+
+### Download job results
+GET {{baseUrl}}/jobs/{{jobId}}/download
+Authorization: Bearer {{authToken}}
+
+### Download job results with custom expiry
+GET {{baseUrl}}/jobs/{{jobId}}/download?expirySeconds=7200
+Authorization: Bearer {{authToken}}
+
+### ERROR CASES
+
+### Try to create job without authentication
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+
+{
+    "type": "CRITERIA_POLYGONS",
+    "inputPayload": {
+        "id" : 1
+    }
+}
+
+### Try to create job with invalid type
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "INVALID_TYPE",
+    "inputPayload": {
+        "id" : 1
+    }
+}
+
+### Try to create job with invalid payload schema
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "CRITERIA_POLYGONS",
+    "inputPayload": {
+        "invalidField": true
+    }
+}
+
+### Try to assign already assigned job
+POST {{baseUrl}}/jobs/assign
+Content-Type: {{contentType}}
+
+{
+    "jobId": {{jobId}},
+    "ecsTaskArn": "arn:aws:ecs:region:account:task/cluster/another-task",
+    "ecsClusterArn": "arn:aws:ecs:region:account:cluster/another-cluster"
+}
+
+### Try to submit result for non-existent assignment
+POST {{baseUrl}}/jobs/assignments/999999/result
+Content-Type: {{contentType}}
+
+{
+    "status": "SUCCEEDED",
+    "resultPayload": {}
+}
+
+### Try to submit result with invalid status
+POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
+Content-Type: {{contentType}}
+
+{
+    "status": "INVALID_STATUS",
+    "resultPayload": {}
+}
+
+### Try to cancel completed job
+POST {{baseUrl}}/jobs/{{jobId}}/cancel
+Authorization: Bearer {{authToken}}
+
+### Try to access job details of another user's job
+# Note: This assumes job ID 999999 belongs to another user
+GET {{baseUrl}}/jobs/999999
+Authorization: Bearer {{authToken}}
+
+### Try to download results of incomplete job
+# Create new job for this test
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "CRITERIA_POLYGONS",
+    "inputPayload": {
+        "id" : 1
+    }
+}
+
+### Try download (should fail as job is not complete)
+GET {{baseUrl}}/jobs/{{jobId}}/download
+Authorization: Bearer {{authToken}}

@@ -104,7 +104,7 @@ router.post(
     const { email, password, roles = [] } = req.body;
     // Create the user
     const newUserId = await registerUser({ email, password, roles });
-    res.status(201).json({ id: newUserId });
+    res.status(200).json({ id: newUserId });
   },
 );
 

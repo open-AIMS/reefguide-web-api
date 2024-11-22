@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-ecs';
 import { InternalServerError } from '../exceptions';
 import { config } from '../config';
+import { initialiseAdmins } from '../initialise';
 
 require('express-async-errors');
 export const router = express.Router();
@@ -177,5 +178,21 @@ router.post(
         error as Error,
       );
     }
+  },
+);
+
+/**
+ * Forces the DB to perform its seed initialisation
+ */
+router.get(
+  '/init',
+  passport.authenticate('jwt', { session: false }),
+  assertUserIsAdminMiddleware,
+  async (req, res) => {
+    // if the user is admin, allow forceful re-init in case of out of date admin
+    // or other service creds
+    await initialiseAdmins();
+    res.status(200).send();
+    return;
   },
 );

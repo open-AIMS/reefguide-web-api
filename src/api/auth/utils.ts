@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
   RefreshTokenContents,
   RefreshTokenContentsSchema,
-} from '../../interfaces/Auth';
+} from '../types/auth';
 import { prisma } from '../apiSetup';
 import {
   ExpiredRefreshTokenException,

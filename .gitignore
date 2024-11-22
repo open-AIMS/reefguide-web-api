@@ -147,3 +147,5 @@ scripts/flatten.sh
 
 # Config management
 env.json
+
+*.env
