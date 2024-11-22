@@ -100,6 +100,43 @@ when ready,
 npx cdk deploy
 ```
 
+## DB backup (recommended prior to migration)
+
+Install pg_dump for v16 of postgres
+
+```
+# get the psql repository
+sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+# repo signing key
+curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+
+# Update package list
+sudo apt update
+
+# Install postgresql-client package which includes pg_dump
+sudo apt install postgresql-client-16
+
+# verify installation (should show v16)
+pg_dump --version
+```
+
+Then get the DB connection string including the auth - remove all the query strings from the end, and
+
+```
+pg_dump postgresql://connection-string > backup.sql
+```
+
+Check the file contents, and of course be sure to store it securely, not in this repo.
+
+## To migrate production DB
+
+First, backup the database, then, ensuring your `.env` has the correct db strings,
+
+```
+npx prisma migrate deploy
+```
+
 ## Development
 
 - Start the development server: `npm run dev`
