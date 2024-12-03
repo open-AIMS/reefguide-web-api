@@ -46,6 +46,12 @@ export const ListUserLogsResponseSchema = z.object({
       user: UserDetailsSchema,
     }),
   ),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    pages: z.number(),
+  }),
 });
 export type ListUserLogsResponse = z.infer<typeof ListUserLogsResponseSchema>;
 
@@ -209,25 +215,51 @@ router.delete(
 );
 
 /**
- * Delete a user (admin only)
+ * Get user logs - optionally filter by a userId if provided.
+ *
+ * Pagination is implemented with page/limit.
+ *
  */
 router.get(
   '/utils/log',
   passport.authenticate('jwt', { session: false }),
   assertUserIsAdminMiddleware,
-  processRequest({ params: z.object({ userId: z.string().optional() }) }),
+  processRequest({
+    query: z.object({
+      userId: z.string().optional(),
+      page: z.string().default('1'),
+      limit: z.string().default('50'),
+    }),
+  }),
   async (req, res: Response<ListUserLogsResponse>) => {
+    // Process request seems to think these are optional - which is not correct
+    const page = Math.max(1, parseInt(req.query.page!));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit!)));
+    const skip = (page - 1) * limit;
+
     const where = {
-      ...(req.params.userId ? { userId: parseInt(req.params.userId) } : {}),
+      ...(req.query.userId ? { userId: parseInt(req.query.userId) } : {}),
     };
 
-    const logs = await prisma.userLog.findMany({
-      where,
-      include: { user: { select: { roles: true, id: true, email: true } } },
-      // newest first
-      orderBy: { time: 'desc' },
-    });
+    const [logs, total] = await Promise.all([
+      prisma.userLog.findMany({
+        where,
+        include: { user: { select: { roles: true, id: true, email: true } } },
+        orderBy: { time: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.userLog.count({ where }),
+    ]);
 
-    res.json({ logs });
+    res.json({
+      logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   },
 );
