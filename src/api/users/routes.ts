@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserAction, UserRole } from '@prisma/client';
 import express, { Response } from 'express';
 import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
@@ -11,6 +11,7 @@ export const router = express.Router();
 
 import { prisma } from '../apiSetup';
 import { changePassword, registerUser } from '../services/auth';
+import { UserDetailsSchema } from '../types/auth';
 
 const UpdateUserRolesSchema = z.object({
   roles: z.array(z.nativeEnum(UserRole)),
@@ -33,6 +34,20 @@ const CreateUserSchema = z.object({
   password: z.string().min(8),
   roles: z.array(z.nativeEnum(UserRole)).optional(),
 });
+
+export const ListUserLogsResponseSchema = z.object({
+  logs: z.array(
+    z.object({
+      id: z.number(),
+      userId: z.number(),
+      time: z.date(),
+      action: z.nativeEnum(UserAction),
+      metadata: z.any().optional(),
+      user: UserDetailsSchema,
+    }),
+  ),
+});
+export type ListUserLogsResponse = z.infer<typeof ListUserLogsResponseSchema>;
 
 /**
  * Get all users (admin only)
@@ -134,6 +149,11 @@ router.put(
         },
       });
 
+      // and add update to log
+      await prisma.userLog.create({
+        data: { action: 'UPDATED', userId: user.id },
+      });
+
       res.json(user);
     } catch (error) {
       handlePrismaError(error, 'Failed to update user roles.');
@@ -156,6 +176,12 @@ router.put(
     const { password } = req.body;
 
     await changePassword({ id: userId, password });
+
+    // and add password update to log
+    await prisma.userLog.create({
+      data: { action: 'CHANGE_PASSWORD', userId: userId },
+    });
+
     res.status(200).send();
   },
 );
@@ -179,5 +205,29 @@ router.delete(
     } catch (error) {
       handlePrismaError(error, 'Failed to delete user.');
     }
+  },
+);
+
+/**
+ * Delete a user (admin only)
+ */
+router.get(
+  '/utils/log',
+  passport.authenticate('jwt', { session: false }),
+  assertUserIsAdminMiddleware,
+  processRequest({ params: z.object({ userId: z.string().optional() }) }),
+  async (req, res: Response<ListUserLogsResponse>) => {
+    const where = {
+      ...(req.params.userId ? { userId: parseInt(req.params.userId) } : {}),
+    };
+
+    const logs = await prisma.userLog.findMany({
+      where,
+      include: { user: { select: { roles: true, id: true, email: true } } },
+      // newest first
+      orderBy: { time: 'desc' },
+    });
+
+    res.json({ logs });
   },
 );
