@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserAction, UserRole } from '@prisma/client';
 import express, { Response } from 'express';
 import { z } from 'zod';
 import { processRequest } from 'zod-express-middleware';
@@ -11,6 +11,7 @@ export const router = express.Router();
 
 import { prisma } from '../apiSetup';
 import { changePassword, registerUser } from '../services/auth';
+import { UserDetailsSchema } from '../types/auth';
 
 const UpdateUserRolesSchema = z.object({
   roles: z.array(z.nativeEnum(UserRole)),
@@ -33,6 +34,26 @@ const CreateUserSchema = z.object({
   password: z.string().min(8),
   roles: z.array(z.nativeEnum(UserRole)).optional(),
 });
+
+export const ListUserLogsResponseSchema = z.object({
+  logs: z.array(
+    z.object({
+      id: z.number(),
+      userId: z.number(),
+      time: z.date(),
+      action: z.nativeEnum(UserAction),
+      metadata: z.any().optional(),
+      user: UserDetailsSchema,
+    }),
+  ),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    pages: z.number(),
+  }),
+});
+export type ListUserLogsResponse = z.infer<typeof ListUserLogsResponseSchema>;
 
 /**
  * Get all users (admin only)
@@ -134,6 +155,11 @@ router.put(
         },
       });
 
+      // and add update to log
+      await prisma.userLog.create({
+        data: { action: 'UPDATED', userId: user.id },
+      });
+
       res.json(user);
     } catch (error) {
       handlePrismaError(error, 'Failed to update user roles.');
@@ -156,6 +182,12 @@ router.put(
     const { password } = req.body;
 
     await changePassword({ id: userId, password });
+
+    // and add password update to log
+    await prisma.userLog.create({
+      data: { action: 'CHANGE_PASSWORD', userId: userId },
+    });
+
     res.status(200).send();
   },
 );
@@ -179,5 +211,55 @@ router.delete(
     } catch (error) {
       handlePrismaError(error, 'Failed to delete user.');
     }
+  },
+);
+
+/**
+ * Get user logs - optionally filter by a userId if provided.
+ *
+ * Pagination is implemented with page/limit.
+ *
+ */
+router.get(
+  '/utils/log',
+  passport.authenticate('jwt', { session: false }),
+  assertUserIsAdminMiddleware,
+  processRequest({
+    query: z.object({
+      userId: z.string().optional(),
+      page: z.string().default('1'),
+      limit: z.string().default('50'),
+    }),
+  }),
+  async (req, res: Response<ListUserLogsResponse>) => {
+    // Process request seems to think these are optional - which is not correct
+    const page = Math.max(1, parseInt(req.query.page!));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit!)));
+    const skip = (page - 1) * limit;
+
+    const where = {
+      ...(req.query.userId ? { userId: parseInt(req.query.userId) } : {}),
+    };
+
+    const [logs, total] = await Promise.all([
+      prisma.userLog.findMany({
+        where,
+        include: { user: { select: { roles: true, id: true, email: true } } },
+        orderBy: { time: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.userLog.count({ where }),
+    ]);
+
+    res.json({
+      logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   },
 );
