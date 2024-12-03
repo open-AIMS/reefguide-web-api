@@ -27,6 +27,7 @@ model User {
     refreshTokens RefreshToken[]
     jobs          Job[]
     jobRequests   JobRequest[]
+    log           UserLog[]
 }
 
 // User submitted polygon - has notes
@@ -179,4 +180,29 @@ model JobResult {
     storage_uri    String
     // Optional metadata about the results
     metadata       Json?
+}
+
+enum UserAction {
+    LOGIN
+    LOGOUT
+    CHANGE_PASSWORD
+    UPDATED
+}
+
+model UserLog {
+    // ID for the action
+    id Int @id @default(autoincrement())
+
+    // When did this occur
+    time DateTime @default(now())
+
+    // Action type
+    action UserAction
+
+    // Optional metadata field to hold any data associated with this action
+    metadata Json?
+
+    // Which user was this for?
+    user   User @relation(fields: [userId], references: [id])
+    userId Int
 }
