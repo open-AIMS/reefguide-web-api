@@ -231,7 +231,6 @@ exports.handler = async (event: any, context: any) => {
       console.log('Importing API setup...');
       const { default: app } = await import('../api/apiSetup');
 
-
       console.log('Creating serverless express handler...');
       handler = serverlessExpress({ app });
 
