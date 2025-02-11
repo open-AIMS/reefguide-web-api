@@ -9,6 +9,7 @@ import { DeploymentConfig } from './infra_config';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
+import { Db } from './components/db';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -95,6 +96,17 @@ export class ReefguideWebApiStack extends cdk.Stack {
     const networking = new ReefGuideNetworking(this, 'networking', {
       certificate: primaryCert,
     });
+
+    // Setup RDS if desired
+    let db = undefined;
+    if (config.db) {
+      // Deploy RDS postgresql 16_4 instance if specified
+      db = new Db(this, 'db', {
+        vpc: networking.vpc,
+        instanceSize: config.db.instanceSize,
+        storageGb: config.db.storageGb,
+      });
+    }
 
     // ReefGuideAPI.jl
     // ===============

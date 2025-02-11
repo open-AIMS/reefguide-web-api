@@ -76,7 +76,7 @@ export class WebAPI extends Construct {
       },
     );
 
-    const dbSecret = sm.Secret.fromSecretCompleteArn(
+    const apiSecrets = sm.Secret.fromSecretCompleteArn(
       this,
       'db-creds',
       config.apiSecretsArn,
@@ -90,6 +90,8 @@ export class WebAPI extends Construct {
       environment: {
         PORT: String(this.internalPort),
         NODE_ENV: config.nodeEnv,
+        // This contains the database connection strings, as well as the JWT
+        // info
         API_SECRETS_ARN: config.apiSecretsArn,
         WORKER_CREDS_ARN: props.workerCreds.secretArn,
         MANAGER_CREDS_ARN: props.managerCreds.secretArn,
@@ -114,7 +116,7 @@ export class WebAPI extends Construct {
     });
 
     // allow read of db secrets
-    dbSecret.grantRead(this.lambda);
+    apiSecrets.grantRead(this.lambda);
 
     // Initialisation creds
     props.managerCreds.grantRead(this.lambda);
