@@ -41,6 +41,8 @@ export class Db extends Construct {
       // This makes managing the DB through Prisma etc much easier but has
       // security implications - particularly in combination with disabling iam Authentication
       publiclyAccessible: true,
+      // Place into public subnet
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       // Take a snapshot upon removal
       removalPolicy: RemovalPolicy.SNAPSHOT,
       // Storage encryption - enable
