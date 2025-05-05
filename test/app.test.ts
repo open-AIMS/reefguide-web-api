@@ -12,10 +12,12 @@ import {
   user2Token,
   userSetup,
 } from './utils';
-import { JobStatus, JobType } from '@prisma/client';
+import { JobStatus, JobType, UserAction } from '@prisma/client';
 import { createJobResponseSchema } from '../src/api/jobs/routes';
 import { JobService } from '../src/api/services/jobs';
 import { randomInt } from 'crypto';
+import { ListUserLogsResponse } from '../src/api/users/routes';
+import { KeyAlgorithm } from 'aws-cdk-lib/aws-certificatemanager';
 
 afterAll(async () => {
   // clear when finished
@@ -258,6 +260,83 @@ describe('API', () => {
               .set('Authorization', `Bearer ${expiredToken}`)
               .expect(401);
           }
+        });
+      });
+
+      describe('GET /api/auth/utils/log', () => {
+        it('should return logs for logins and creations for user', async () => {
+          let log;
+          let res;
+          res = await authRequest(app, 'admin')
+            .get('/api/users/utils/log')
+            .expect(200);
+          log = res.body as ListUserLogsResponse;
+          console.log(log);
+          expect(log.logs.length).toEqual(0);
+
+          // Now register a fake user
+          const email = 'fake@fake.com';
+          let password = 'jsklfdjklsjdjsklfjdkls';
+          res = await request(app)
+            .post('/api/auth/register')
+            .send({ email, password })
+            .expect(200);
+          expect(res.body).toHaveProperty('userId');
+          const userId: number = res.body.userId;
+
+          // Now login
+          res = await request(app)
+            .post('/api/auth/login')
+            .send({ email, password })
+            .expect(200);
+
+          // Check the log looks good
+          res = await authRequest(app, 'admin')
+            .get('/api/users/utils/log')
+            .expect(200);
+          log = res.body as ListUserLogsResponse;
+          expect(log.logs.length).toEqual(1);
+          expect(log.logs[0].user.email).toEqual(email);
+          expect(log.logs[0].action).toEqual(UserAction.LOGIN);
+
+          // update password
+          password = 'updateljkldsfdjskl';
+          res = await authRequest(app, 'admin')
+            .put(`/api/users/${userId}/password`)
+            .send({ password })
+            .expect(200);
+
+          // Check the log looks good
+          res = await authRequest(app, 'admin')
+            .get('/api/users/utils/log')
+            .expect(200);
+          log = res.body as ListUserLogsResponse;
+          expect(log.logs.length).toEqual(2);
+          // latest first
+          expect(log.logs[0].user.id).toEqual(userId);
+          expect(log.logs[0].user.email).toEqual(email);
+          expect(log.logs[0].action).toEqual(UserAction.CHANGE_PASSWORD);
+          // older second
+          expect(log.logs[1].user.id).toEqual(userId);
+          expect(log.logs[1].user.email).toEqual(email);
+          expect(log.logs[1].action).toEqual(UserAction.LOGIN);
+
+          // Now login again
+          res = await request(app)
+            .post('/api/auth/login')
+            .send({ email, password })
+            .expect(200);
+
+          // Check the log looks good
+          res = await authRequest(app, 'admin')
+            .get('/api/users/utils/log')
+            .expect(200);
+          log = res.body as ListUserLogsResponse;
+          expect(log.logs.length).toEqual(3);
+          // latest first
+          expect(log.logs[0].user.id).toEqual(userId);
+          expect(log.logs[0].user.email).toEqual(email);
+          expect(log.logs[0].action).toEqual(UserAction.LOGIN);
         });
       });
     });

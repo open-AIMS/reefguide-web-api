@@ -1,3 +1,4 @@
+import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 
 // Auth schemas
@@ -31,10 +32,16 @@ export const ProfileResponseSchema = z.object({
   user: z.object({
     id: z.number(),
     email: z.string().email(),
-    // Add any other user properties you want to include
   }),
 });
 export type ProfileResponse = z.infer<typeof ProfileResponseSchema>;
+
+export const UserDetailsSchema = z.object({
+  id: z.number(),
+  email: z.string().email(),
+  roles: z.array(z.nativeEnum(UserRole)),
+});
+export type UserDetails = z.infer<typeof UserDetailsSchema>;
 
 // The decoded contents of a refresh token
 export const RefreshTokenContentsSchema = z.object({
