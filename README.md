@@ -65,8 +65,8 @@ Get up and running with the API in minutes:
 
 ```bash
 # Clone the repository
-git clone <https://github.com/open-AIMS/reefguide-web-api.git>
-cd <reefguide-web-api>
+git clone https://github.com/open-AIMS/reefguide-web-api.git
+cd reefguide-web-api
 
 # Install dependencies
 nvm use 20  # Or your preferred Node.js v18+ version
