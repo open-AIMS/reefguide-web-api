@@ -400,11 +400,12 @@ export class ReefGuideAPI extends Construct {
     this.dataBucket.grantReadWrite(efsManagementRole);
 
     const userData = ec2.UserData.forLinux();
+    const scriptLocation = '/home/ubuntu/mountefs.sh';
     userData.addCommands(
       // update etc
       'sudo apt -y update',
       // get deps
-      'sudo apt -y install unzip git binutils rustc cargo pkg-config libssl-dev',
+      'sudo apt -y install unzip git binutils rustc cargo pkg-config libssl-dev ranger',
       // efs utils install
       'git clone https://github.com/aws/efs-utils',
       'cd efs-utils',
@@ -414,6 +415,9 @@ export class ReefGuideAPI extends Construct {
       // setup reefguide mount in /efs of ubuntu user
       'mkdir /home/ubuntu/efs',
       `mount -t efs -o tls,iam ${fileSystem.fileSystemId} /home/ubuntu/efs/`,
+
+      // Leave a script to help mount in the future
+      `touch ${scriptLocation} && chmod +x ${scriptLocation} && echo "sudo mount -t efs -o tls,iam fs-0badb6b5a6eac95ea /home/ubuntu/efs/" > ${scriptLocation}`,
 
       // Install AWS CLI
       'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',

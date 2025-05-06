@@ -312,6 +312,7 @@ All auth routes are prefixed with `/auth`.
   - Error (500): `{ "message": "User object was not available after authorisation." }`
 
 **Notes**:
+
 - All endpoints use JSON for request and response bodies.
 - The register endpoint returns only the user ID on success.
 - The login endpoint returns both a JWT token and a refresh token.
@@ -538,6 +539,7 @@ With a configuration repo that follows the specifications in the [Configuring CD
 ```
 
 Example:
+
 ```bash
 ./config org dev --target git@github.com:org/repo.git
 ```
@@ -545,21 +547,25 @@ Example:
 ### Deployment Steps
 
 1. Export your config file path:
+
    ```bash
    export CONFIG_FILE_NAME=<file name.json e.g. dev.json>
    ```
 
 2. Ensure you have AWS credentials active for the target environment:
+
    ```bash
    aws sts get-caller-identity
    ```
 
 3. Bootstrap CDK environment (if on new account):
+
    ```bash
    npx cdk bootstrap
    ```
 
 4. Preview changes:
+
    ```bash
    npx cdk diff
    ```
@@ -1002,6 +1008,7 @@ const jobTypeSchemas = {
 ### Database Connection Issues
 
 - **Issue**: Can't connect to database with `localhost`
+
   - **Solution**: Try using `127.0.0.1` instead in your connection string
 
 - **Issue**: "Connection refused" error
@@ -1017,7 +1024,22 @@ const jobTypeSchemas = {
 ### Prisma Client Generation Errors
 
 - **Issue**: Prisma client not found
+
   - **Solution**: Run `npm run prisma-generate`
 
 - **Issue**: Migration errors
   - **Solution**: Check your database connection and try `npm run db-reset`
+
+## Administering the EFS service instance
+
+- connect to the instance using AWS SSM Connect (go to AWS -> EC2 -> Find the service instance -> Connect -> Connect using SSM)
+
+then get into the ubuntu user and mount the volume
+
+```bash
+sudo su - ubuntu
+cd ~
+./mountefs.sh
+```
+
+This should mount the data into `/efs/data` with `/efs/data/reefguide` being the targeted data directory.
