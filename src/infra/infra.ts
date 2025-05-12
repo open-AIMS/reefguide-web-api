@@ -149,16 +149,33 @@ export class ReefguideWebApiStack extends cdk.Stack {
       cluster: cluster,
       apiEndpoint: webAPI.endpoint,
       capacityManager: {
+        // Measly! But seems to work well
         cpu: 256,
         memoryLimitMiB: 512,
         pollIntervalMs: 5000,
       },
       jobTypes: {
+        // TODO we may want to deploy one worker configuration to handle
+        // multiple job types
         CRITERIA_POLYGONS: {
-          cpu: 512,
-          memoryLimitMiB: 1024,
+          // This specifies the image to be used - should be in the full format
+          // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
+          workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
+          // TODO tinker with performance here - we can make these chunky if
+          // needed as they should run transiently
+          cpu: 1024,
+          memoryLimitMiB: 2048,
           serverPort: 3000,
-          command: ['npm', 'run', 'start-worker'],
+
+          // Launch the worker
+          command: [
+            'julia',
+            '--project=@reefguide',
+            '-t',
+            'auto,1',
+            '-e',
+            'using ReefGuideAPI; ReefGuideAPI.start_worker()',
+          ],
           desiredMinCapacity: 0,
           desiredMaxCapacity: 5,
           scaleUpThreshold: 1,

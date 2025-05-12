@@ -13,9 +13,9 @@ export interface JobTypeConfig {
   cpu: number;
   memoryLimitMiB: number;
 
-  // Worker Docker image
-  // TODO use this - for now build sample
-  // workerImage: string;
+  // This specifies the image to be used - should be in the full format
+  // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
+  workerImage: string;
 
   // Scaling configuration
   desiredMinCapacity: number;
@@ -24,6 +24,8 @@ export interface JobTypeConfig {
   cooldownSeconds: number;
   serverPort: number;
   command: string[];
+
+  healthCheck?: ecs.HealthCheck;
 }
 
 export interface JobSystemProps {
@@ -98,21 +100,20 @@ export class JobSystem extends Construct {
 
       // Add container to task definition
       taskDef.addContainer(`${jobType}-container`, {
-        // TODO use this
-        // image: ecs.ContainerImage.fromRegistry(config.workerImage),
+        // This specifies the image to be used - should be in the full format
+        // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
+        image: ecs.ContainerImage.fromRegistry(config.workerImage),
         // Docker command
         command: config.command,
-        image: ecs.ContainerImage.fromAsset('.', {
-          buildArgs: { PORT: config.serverPort.toString() },
-        }),
         logging: ecs.LogDrivers.awsLogs({
           streamPrefix: `worker-${jobType.toLowerCase()}`,
           logRetention: logs.RetentionDays.ONE_WEEK,
         }),
         environment: {
           API_ENDPOINT: props.apiEndpoint,
-          JOB_TYPES: jobType,
           AWS_REGION: Stack.of(this).region,
+          // TODO might be multiple job types here
+          JOB_TYPES: jobType,
           S3_BUCKET_NAME: this.storageBucket.bucketName,
         },
         // pass in the worker creds
@@ -127,18 +128,7 @@ export class JobSystem extends Construct {
             'password',
           ),
         },
-        healthCheck: {
-          command: [
-            'CMD-SHELL',
-            // This magic redirects the output of health checks into logs for
-            // the container so if it fails we can actually see why (facepalm)
-            `curl -f http://localhost:${config.serverPort}/health >> /proc/1/fd/1 2>&1 || exit 1`,
-          ],
-          interval: Duration.seconds(30),
-          timeout: Duration.seconds(5),
-          retries: 3,
-          startPeriod: Duration.seconds(60),
-        },
+        healthCheck: config.healthCheck,
       });
 
       this.taskDefinitions[jobType] = taskDef;
