@@ -1,6 +1,53 @@
-# ReefGuide Web API
+# ReefGuide Web API - Developer Guide
 
 A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and Prisma, deployable to AWS using CDK.
+
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+- [Testing Your Setup](#testing-your-setup)
+- [Development Workflow](#development-workflow)
+- [Database Management](#database-management)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [API Endpoints](#api-endpoints)
+  - [Authentication](#authentication)
+  - [Polygons](#polygons)
+  - [Notes](#notes)
+  - [Cluster Management](#cluster-management)
+- [AWS Deployment](#aws-deployment)
+  - [Configuration Methods](#configuration-methods)
+  - [Deployment Steps](#deployment-steps)
+- [CDK Infrastructure](#cdk-infrastructure)
+  - [Components](#components)
+  - [Service Architecture](#service-architecture)
+  - [Networking](#networking)
+  - [Security](#security)
+  - [CDK Deployment](#cdk-deployment)
+  - [Customization](#customization)
+- [Configuring CDK](#configuring-cdk)
+  - [Config Definitions](#config-definitions)
+  - [Config Repository](#config-repository)
+  - [Structure](#structure)
+  - [File Organization](#file-organization)
+  - [Usage by Config Scripts](#usage-by-config-scripts)
+  - [Interaction with Repository](#interaction-with-repository)
+  - [Best Practices](#best-practices)
+- [Using Prisma ORM](#using-prisma-orm)
+- [Job System](#job-system)
+  - [Architecture](#architecture)
+  - [Key Files](#key-files)
+  - [Entity Relationships](#entity-relationships)
+  - [Job Lifecycle](#job-lifecycle)
+  - [Job Sequence Diagram](#job-sequence-diagram)
+  - [API Routes](#api-routes)
+  - [Job Types](#job-types)
+- [Security](#security-1)
+- [Notes](#notes-1)
+- [Troubleshooting](#troubleshooting)
 
 ## Features
 
@@ -12,108 +59,157 @@ A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and
 - Environment-based configuration with Zod validation
 - Basic docker compose
 
+## Quick Start
+
+Get up and running with the API in minutes:
+
+```bash
+# Clone the repository
+git clone https://github.com/open-AIMS/reefguide-web-api.git
+cd reefguide-web-api
+
+# Install dependencies
+nvm use 20  # Or your preferred Node.js v18+ version
+npm install
+
+# Configure environment
+cp .env.example .env
+npm run local-keys  # Generate JWT keys
+
+# Start PostgreSQL and setup database
+docker-compose up -d
+npm run prisma-generate
+npm run db-reset
+
+# Start development server
+npm run dev
+```
+
+### Testing the API
+
+```bash
+# Create a test user
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+# Login to get JWT token
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+# Use the token for authenticated requests
+curl -X GET http://localhost:5000/api/auth/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+For detailed setup instructions, see the [Local Development Setup](#local-development-setup) section.
+
 ## Prerequisites
 
 - Node.js (v18+)
 - AWS CLI configured with appropriate permissions
 - Docker (for local development with Prisma)
 
-## Setup (local)
+## Local Development Setup
 
 1. Clone the repository
-1. Install dependencies: `npm install`
-1. Generate Prisma client: `npm run prisma-generate`
-1. Set up environment variables: Copy `.env.example` to `.env`
-1. Generate JWT keys: `npm run local-keys`
-1. Start up psql `docker compose up`
-1. Run DB migration `npm run db-reset`
-1. Start server with auto-restart `npm run dev`
+2. Install dependencies: `npm install`
+3. Generate Prisma client: `npm run prisma-generate`
+4. Set up environment variables: Copy `.env.example` to `.env`
+5. Generate JWT keys: `npm run local-keys`
+6. Start up psql `docker compose up`
+7. Run DB migration `npm run db-reset`
+8. Start server with auto-restart `npm run dev`
 
-## Setup and deploy with AWS
-
-Ensure you have your `npm` environment setup and installed as above i.e.
+If you experience connection issues with the database, try using `127.0.0.1` instead of `localhost` in your connection strings:
 
 ```
-nvm use 20
-npm install
+DATABASE_URL=postgresql://admin:password@127.0.0.1:5432
+DIRECT_URL=postgresql://admin:password@127.0.0.1:5432
 ```
 
-Start by creating a configuration file, using either the [local](#local-configuration-method-new-deployment) or [remote](#remote-configuration-method-existing-configuration) method below.
+## Testing Your Setup
 
-### Local configuration method (new deployment)
+### Health Check
 
-create a config json file in `configs` e.g. `dev.json`. The `sample.json` includes example values.
+Verify the API is running:
 
-Next, run `npm run aws-keys -- <secret name e.g. dev-reefguide-creds>` with appropriate AWS creds in the environment, this creates an AWS secret manager with a generated keypair for JWT signing.
-
-Then open this secret and add `DATABASE_URL` and `DIRECT_URL` fields which correspond to prisma values for the postgresql DB provider.
-
-### Remote configuration method (existing configuration)
-
-With a configuration repo which conforms to the specifications defined below in [config](#configuration), you can pull it with the config script.
-
-```
-./config <stage> <namespace> --target <repo clone string>
+```bash
+curl http://localhost:5000/api/health
+# Expected response: {"status":"ok"}
 ```
 
-e.g.
+### User Registration
 
-```
-./config org dev --target git@github.com:org/repo.git
-```
+Create a test user:
 
-### Deploying with CDK
-
-First, export your config file path
-
-```
-export CONFIG_FILE_NAME=<file name.json e.g. dev.json>
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
 ```
 
-e.g.
+### User Login
 
-```
-export CONFIG_FILE_NAME=dev.json
-```
+Get an authentication token:
 
-Then, ensure you have AWS credentials active for the target environment, you can check using
-
-```
-aws sts get-caller-identity
+```bash
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
 ```
 
-Then, ensure your CDK environment is bootstrapped (if on new account)
+### Using Authentication with Postman
 
+After obtaining your JWT token:
+
+1. In Postman, create a new request
+2. Go to the "Authorization" tab
+3. Select "Bearer Token" from the Type dropdown
+4. Paste your token into the "Token" field
+
+Alternatively, use environment variables in Postman to store your token for reuse across multiple requests.
+
+## Development Workflow
+
+```bash
+# Start the development server with auto-restart
+npm run dev
+
+# Run the linter
+npm run lint
+
+# Run type checking
+npm run typecheck
+
+# Run tests
+npm run test
 ```
-npx cdk bootstrap
+
+## Database Management
+
+```bash
+# View and edit data with Prisma Studio
+npm run studio
+
+# Reset the database (WARNING: Deletes all data)
+npm run db-reset
+
+# Create a new migration after changing schema.prisma
+npx prisma migrate dev --name your_migration_name
+
+# Other Prisma operations
+npx prisma ...
 ```
-
-then run a diff
-
-```
-npx cdk diff
-```
-
-when ready,
-
-```
-npx cdk deploy
-```
-
-## Development
-
-- Start the development server: `npm run dev`
-- Run linter: `npm run lint`
-- Run tests: `npm run test`
-- Type checking: `npm run typecheck`
 
 ## Testing
 
-**WARNING**: Running the tests involves resetting the specified DB in your .env file. Double check you are not targetting a production DB before running tests.
+**WARNING**: Running the tests involves resetting the specified DB in your .env file. Double check you are not targeting a production DB before running tests.
 
-Setup a local psql DB for integration testing.
+Setup a local psql DB for integration testing:
 
-```
+```bash
 docker-compose up
 ```
 
@@ -125,35 +221,25 @@ DATABASE_URL=postgresql://admin:password@localhost:5432
 DIRECT_URL=postgresql://admin:password@localhost:5432
 ```
 
-Then migrate the DB to latest
+Then migrate the DB to latest:
 
-```
+```bash
 npm run db-reset
 ```
 
-Also ensure the rest of your .env file is suitable, specifically, generating local keys is needed
+Also ensure the rest of your .env file is suitable, specifically, generating local keys is needed:
 
-```
+```bash
 npm run local-keys
 ```
 
-Now run tests
+Now run tests:
 
-```
+```bash
 npm run test
 ```
 
-## Database
-
-- Reset database: `npm run db-reset`
-- Open Prisma Studio: `npm run studio`
-- Other prisma ops `npx prisma ...`
-
-## Deployment
-
-1. Configure AWS credentials
-2. Set up environment-specific config in `configs/[env].json`
-3. Deploy: `CONFIG_FILE_NAME=[env].json npx cdk deploy`
+Tests use Jest and Supertest for API testing.
 
 ## Project Structure
 
@@ -164,124 +250,18 @@ npm run test
 - `test/`: Test files
 - `configs/`: Environment-specific configurations
 - `scripts/`: Utility scripts
-
-## Configuration
-
 - `config.ts`: Loads and validates environment variables
 - `infra_config.ts`: Defines CDK stack configuration schema
 
-## Testing
-
-Run tests with `npm test`. Tests use Jest and Supertest for API testing.
-
-## Security
-
-- Uses `helmet` for HTTP headers
-- JWT-based authentication with RS256 algorithm
-- Secrets management using AWS Secrets Manager
-
-## Notes
-
-- Include the JWT token in the Authorization header for authenticated requests
-- Handle token expiration (default 1 hour) by refreshing or redirecting to login
-
-# CDK Infrastructure
-
-## Components
-
-1. **VPC**: A Virtual Private Cloud with public subnets.
-
-2. **ECS Cluster**: Hosts the ReefGuideAPI Fargate service.
-
-3. **Application Load Balancer (ALB)**: Handles incoming traffic and distributes it to the ECS services.
-
-4. **API Gateway**: Manages the REST API for the Web API service.
-
-5. **Lambda Function**: Runs the Web API service.
-
-6. **EFS (Elastic File System)**: Provides persistent storage for the ReefGuideAPI service.
-
-7. **S3 Bucket**: Used for intermediary data transfer between the user and the EC2 service instance which mounts the EFS.
-
-8. **EC2 Instance**: Manages the EFS filesystem.
-
-9. **Route 53**: Handles DNS routing.
-
-10. **ACM (AWS Certificate Manager)**: Manages SSL/TLS certificates.
-
-11. **Secrets Manager**: Stores sensitive configuration data.
-
-## Configuration
-
-- The infrastructure is defined using AWS CDK in TypeScript.
-- Configuration is loaded from JSON files in the `configs/` directory.
-- The `ReefGuideAPI` and `WebAPI` are deployed as separate constructs.
-
-### ReefGuideAPI
-
-- Runs as a Fargate service in the ECS cluster.
-- Uses an Application Load Balancer for traffic distribution.
-- Implements auto-scaling based on CPU and memory utilization.
-- Utilizes EFS for persistent storage.
-
-### WebAPI
-
-- Deployed as a Lambda function.
-- Exposed via API Gateway.
-- Uses AWS Secrets Manager for storing sensitive data.
-
-## Networking
-
-- Uses a shared Application Load Balancer for the ReefGuideAPI.
-- API Gateway handles routing for the WebAPI.
-- Route 53 manages DNS records for both services.
-
-## Security
-
-- SSL/TLS certificates are managed through ACM.
-- Secrets are stored in AWS Secrets Manager.
-- IAM roles control access to various AWS services.
-
-## CDK Deployment
-
-1. Ensure AWS CLI is configured with appropriate permissions.
-2. Create a configuration file in `configs/` (e.g., `dev.json`).
-3. Run `npm run aws-keys -- <secret name>` to set up JWT keys in Secrets Manager.
-4. Add database connection strings to the created secret.
-5. Bootstrap CDK environment: `npx cdk bootstrap`
-6. Review changes: `npx cdk diff`
-7. Deploy: `CONFIG_FILE_NAME=[env].json npx cdk deploy`
-
-## Customization
-
-- Modify `src/infra/components/` files to adjust individual service configurations.
-- Update `src/infra/infra.ts` to change overall stack structure.
-- Adjust auto-scaling, instance types, and other parameters in the configuration JSON files.
-
-# Using Prisma ORM
-
-## Creating a new entity
-
-1. Update the `src/db/schema.prisma` with your new models
-2. Apply the migration - heeding warnings
-
-```
-npx prisma migrate dev
-```
-
-# Routes
-
-This section documents the CRUD (Create, Read, Update, Delete) endpoints for polygons and notes in our API.
-
-## Base URL
+## API Endpoints
 
 All routes are prefixed with `/api`.
 
-# Auth Routes
+### Authentication
 
-All prefixed with `/auth`.
+All auth routes are prefixed with `/auth`.
 
-### 1. Register
+#### 1. Register
 
 - **Endpoint:** POST `/register`
 - **Body:**
@@ -295,7 +275,7 @@ All prefixed with `/auth`.
   - Success (200): `{ "userId": "string" }`
   - Error (400): `{ "message": "User already exists" }`
 
-## 2. Login
+#### 2. Login
 
 - **Endpoint:** POST `/login`
 - **Body:**
@@ -309,7 +289,7 @@ All prefixed with `/auth`.
   - Success (200): `{ "token": "JWT_token_string", "refreshToken": "refresh_token_string" }`
   - Error (401): `{ "message": "Invalid credentials" }`
 
-## 3. Refresh Token
+#### 3. Refresh Token
 
 - **Endpoint:** POST `/token`
 - **Body:**
@@ -322,7 +302,7 @@ All prefixed with `/auth`.
   - Success (200): `{ "token": "new_JWT_token_string" }`
   - Error (401): `{ "message": "Invalid refresh token" }`
 
-## 4. Get User Profile
+#### 4. Get User Profile
 
 - **Endpoint:** GET `/profile`
 - **Headers:** `Authorization: Bearer JWT_token_string`
@@ -331,18 +311,17 @@ All prefixed with `/auth`.
   - Error (401): `{ "message": "Unauthorized" }`
   - Error (500): `{ "message": "User object was not available after authorisation." }`
 
-## Notes
+**Notes**:
 
 - All endpoints use JSON for request and response bodies.
-- The register endpoint now returns only the user ID on success.
-- The login endpoint now returns both a JWT token and a refresh token.
-- A new endpoint has been added for refreshing the JWT token using a refresh token.
-- The profile endpoint now includes user roles in the response.
+- The register endpoint returns only the user ID on success.
+- The login endpoint returns both a JWT token and a refresh token.
+- The profile endpoint includes user roles in the response.
 - Error responses may vary based on the specific error encountered.
 
-## Polygons
+### Polygons
 
-### GET /polygons/:id
+#### GET /polygons/:id
 
 Retrieves a specific polygon by ID.
 
@@ -352,14 +331,14 @@ Retrieves a specific polygon by ID.
   - `id` (path parameter): ID of the polygon
 - **Response**: Returns the polygon object
 
-### GET /polygons
+#### GET /polygons
 
 Retrieves all polygons for the authenticated user, or all polygons if the user is an admin.
 
 - **Authentication**: Required (JWT)
 - **Response**: Returns an array of polygon objects
 
-### POST /polygons
+#### POST /polygons
 
 Creates a new polygon.
 
@@ -368,7 +347,7 @@ Creates a new polygon.
   - `polygon` (JSON): GeoJSON representation of the polygon
 - **Response**: Returns the created polygon object
 
-### PUT /polygons/:id
+#### PUT /polygons/:id
 
 Updates an existing polygon.
 
@@ -380,7 +359,7 @@ Updates an existing polygon.
   - `polygon` (JSON): Updated GeoJSON representation of the polygon
 - **Response**: Returns the updated polygon object
 
-### DELETE /polygons/:id
+#### DELETE /polygons/:id
 
 Deletes a polygon.
 
@@ -390,16 +369,16 @@ Deletes a polygon.
   - `id` (path parameter): ID of the polygon to delete
 - **Response**: 204 No Content on success
 
-## Notes
+### Notes
 
-### GET /notes
+#### GET /notes
 
 Retrieves all notes for the authenticated user, or all notes if the user is an admin.
 
 - **Authentication**: Required (JWT)
 - **Response**: Returns an array of note objects
 
-### GET /notes/:id
+#### GET /notes/:id
 
 Retrieves all notes for a specific polygon.
 
@@ -409,7 +388,7 @@ Retrieves all notes for a specific polygon.
   - `id` (path parameter): ID of the polygon
 - **Response**: Returns an array of note objects associated with the polygon
 
-### POST /notes
+#### POST /notes
 
 Creates a new note for a given polygon.
 
@@ -420,7 +399,7 @@ Creates a new note for a given polygon.
   - `polygonId` (number): ID of the polygon to associate the note with
 - **Response**: Returns the created note object
 
-### PUT /notes/:id
+#### PUT /notes/:id
 
 Updates an existing note.
 
@@ -434,11 +413,11 @@ Updates an existing note.
 
 All endpoints require JWT authentication. Admin users have access to all resources, while regular users can only access their own resources. Invalid requests or unauthorized access attempts will result in appropriate error responses.
 
-## Cluster Management
+### Cluster Management
 
-Routes for managing the ReefGuideAPI ECS cluster scaling and status.
+Routes for managing the ReefGuideAPI ECS cluster scaling and status. All routes are prefixed with `/admin`.
 
-### GET /admin/status
+#### GET /admin/status
 
 Retrieves the current status of the ECS cluster.
 
@@ -500,7 +479,7 @@ Retrieves the current status of the ECS cluster.
 }
 ```
 
-### POST /admin/scale
+#### POST /admin/scale
 
 Scales the ECS cluster to a specified number of tasks.
 
@@ -517,7 +496,7 @@ Scales the ECS cluster to a specified number of tasks.
 
 - **Response**: 200 OK
 
-### POST /admin/redeploy
+#### POST /admin/redeploy
 
 Forces a new deployment of the service, which will pull the latest version of the container image.
 
@@ -530,13 +509,136 @@ Forces a new deployment of the service, which will pull the latest version of th
   - This operation will perform a rolling update with zero downtime
   - Old tasks will be replaced with new tasks pulling the latest image
   - The deployment uses a minimum healthy percent of 50% and maximum percent of 200% to ensure service availability
-  - Progress can be monitored via the `/cluster/status` endpoint
+  - Progress can be monitored via the `/admin/status` endpoint
 
-# Configuring CDK
+## AWS Deployment
+
+### Configuration Methods
+
+Ensure you have your `npm` environment setup and installed:
+
+```bash
+nvm use 20
+npm install
+```
+
+Start by creating a configuration file, using either the local or remote method below.
+
+#### Local Configuration Method (New Deployment)
+
+1. Create a config JSON file in `configs/` (e.g., `dev.json`). The `sample.json` includes example values.
+2. Run `npm run aws-keys -- <secret name e.g. dev-reefguide-creds>` with appropriate AWS credentials.
+3. Open the created secret in AWS Secrets Manager and add `DATABASE_URL` and `DIRECT_URL` fields for the PostgreSQL DB provider.
+
+#### Remote Configuration Method (Existing Configuration)
+
+With a configuration repo that follows the specifications in the [Configuring CDK](#configuring-cdk) section:
+
+```bash
+./config <stage> <namespace> --target <repo clone string>
+```
+
+Example:
+
+```bash
+./config org dev --target git@github.com:org/repo.git
+```
+
+### Deployment Steps
+
+1. Export your config file path:
+
+   ```bash
+   export CONFIG_FILE_NAME=<file name.json e.g. dev.json>
+   ```
+
+2. Ensure you have AWS credentials active for the target environment:
+
+   ```bash
+   aws sts get-caller-identity
+   ```
+
+3. Bootstrap CDK environment (if on new account):
+
+   ```bash
+   npx cdk bootstrap
+   ```
+
+4. Preview changes:
+
+   ```bash
+   npx cdk diff
+   ```
+
+5. Deploy:
+   ```bash
+   npx cdk deploy
+   ```
+
+## CDK Infrastructure
+
+### Components
+
+1. **VPC**: A Virtual Private Cloud with public subnets.
+2. **ECS Cluster**: Hosts the ReefGuideAPI Fargate service.
+3. **Application Load Balancer (ALB)**: Handles incoming traffic and distributes it to the ECS services.
+4. **API Gateway**: Manages the REST API for the Web API service.
+5. **Lambda Function**: Runs the Web API service.
+6. **EFS (Elastic File System)**: Provides persistent storage for the ReefGuideAPI service.
+7. **S3 Bucket**: Used for intermediary data transfer between the user and the EC2 service instance which mounts the EFS.
+8. **EC2 Instance**: Manages the EFS filesystem.
+9. **Route 53**: Handles DNS routing.
+10. **ACM (AWS Certificate Manager)**: Manages SSL/TLS certificates.
+11. **Secrets Manager**: Stores sensitive configuration data.
+
+### Service Architecture
+
+#### ReefGuideAPI
+
+- Runs as a Fargate service in the ECS cluster.
+- Uses an Application Load Balancer for traffic distribution.
+- Implements auto-scaling based on CPU and memory utilization.
+- Utilizes EFS for persistent storage.
+
+#### WebAPI
+
+- Deployed as a Lambda function.
+- Exposed via API Gateway.
+- Uses AWS Secrets Manager for storing sensitive data.
+
+### Networking
+
+- Uses a shared Application Load Balancer for the ReefGuideAPI.
+- API Gateway handles routing for the WebAPI.
+- Route 53 manages DNS records for both services.
+
+### Security
+
+- SSL/TLS certificates are managed through ACM.
+- Secrets are stored in AWS Secrets Manager.
+- IAM roles control access to various AWS services.
+
+### CDK Deployment
+
+1. Ensure AWS CLI is configured with appropriate permissions.
+2. Create a configuration file in `configs/` (e.g., `dev.json`).
+3. Run `npm run aws-keys -- <secret name>` to set up JWT keys in Secrets Manager.
+4. Add database connection strings to the created secret.
+5. Bootstrap CDK environment: `npx cdk bootstrap`
+6. Review changes: `npx cdk diff`
+7. Deploy: `CONFIG_FILE_NAME=[env].json npx cdk deploy`
+
+### Customization
+
+- Modify `src/infra/components/` files to adjust individual service configurations.
+- Update `src/infra/infra.ts` to change overall stack structure.
+- Adjust auto-scaling, instance types, and other parameters in the configuration JSON files.
+
+## Configuring CDK
 
 **This config management system is courtesy of [github.com/provena/provena](https://github.com/provena/provena)**
 
-This repo features a detached configuration management approach. This means that configuration should be stored in a separate private repository. This repo provides a set of utilities which interact with this configuration repository, primary the `./config` bash script.
+This repo features a detached configuration management approach. This means that configuration should be stored in a separate private repository. This repo provides a set of utilities which interact with this configuration repository, primarily the `./config` bash script.
 
 ```text
 config - Configuration management tool for interacting with a private configuration repository
@@ -589,17 +691,17 @@ The script builds in functionality to cache the repo which makes available a giv
 
 This saves using the `--target` option on every `./config` invocation. You can share this file between team members, but we do not recommend committing it to your repository.
 
-## Config definitions
+### Config Definitions
 
 **Namespace**: This is a grouping that we provide to allow you to separate standalone sets of configurations into distinct groups. For example, you may manage multiple organisation's configurations in one repo. You can just use a single namespace if suitable.
 
 **Stage**: A stage is a set of configurations within a namespace. This represents a 'deployment' of Provena.
 
-## Config repository
+### Config Repository
 
 The configuration repository contains configuration files for the this project.
 
-### `cdk.context.json`
+#### `cdk.context.json`
 
 The configuration repo does not contain sample `cdk.context.json` files, but we recommend including this in this repo to make sure deployments are deterministic. This will be generated upon first CDK deploy.
 
@@ -622,7 +724,7 @@ A namespace represents a set of related deployment stages, usually one namespace
 
 #### Stages
 
-Within each namespace, there are multiple stages representing different environments/deployment specifications
+Within each namespace, there are multiple stages representing different environments/deployment specifications:
 
 - `base`: Contains common base configurations shared across all stages within the namespace
 - `dev`: Sample development environment configurations
@@ -645,7 +747,7 @@ Configuration files are placed within the appropriate namespace and stage direct
             └── dev.json
 ```
 
-### Usage by config scripts
+### Usage by Config Scripts
 
 #### Base Configurations
 
@@ -672,11 +774,22 @@ The main repository contains a configuration management script that interacts wi
 2. Document changes: Use clear, descriptive commit messages and update this README if you make structural changes.
 3. Minimize secrets: Avoid storing sensitive information like passwords or API keys directly in these files. Instead, use secure secret management solutions.
 
-# Job System
+## Using Prisma ORM
+
+### Creating a new entity
+
+1. Update the `src/db/schema.prisma` with your new models
+2. Apply the migration - heeding warnings
+
+```bash
+npx prisma migrate dev
+```
+
+## Job System
 
 A job processing system built on top of Postgres and ECS. Uses Postgres as a job queue and tracks job status, assignments, and results.
 
-## Architecture
+### Architecture
 
 The system consists of three main components:
 
@@ -742,7 +855,7 @@ erDiagram
     }
 ```
 
-## Job Lifecycle
+### Job Lifecycle
 
 ```mermaid
 stateDiagram-v2
@@ -767,7 +880,7 @@ stateDiagram-v2
     TIMED_OUT --> [*]
 ```
 
-## Job Sequence Diagram
+### Job Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -841,21 +954,21 @@ sequenceDiagram
     end
 ```
 
-## API Routes
+### API Routes
 
-### Job Management
+#### Job Management
 
 - POST /api/jobs - Create new job
 - GET /api/jobs/:id - Get job details
 - POST /api/jobs/:id/cancel - Cancel a job
 
-### Worker Node API
+#### Worker Node API
 
 - GET /api/jobs/poll - Get available jobs, optional query param: jobType. Returns jobs that are PENDING and have no valid assignments.
 - POST /api/jobs/assign - Assign job to worker. Creates assignment record with storage location.
 - POST /api/jobs/assignments/:id/result - Submit job results - Updates job status and stores result if successful.
 
-## Job Types
+### Job Types
 
 Each job type must define:
 
@@ -878,3 +991,55 @@ const jobTypeSchemas = {
   },
 };
 ```
+
+## Security
+
+- Uses `helmet` for HTTP headers
+- JWT-based authentication with RS256 algorithm
+- Secrets management using AWS Secrets Manager
+
+## Notes
+
+- Include the JWT token in the Authorization header for authenticated requests
+- Handle token expiration (default 1 hour) by refreshing or redirecting to login
+
+## Troubleshooting
+
+### Database Connection Issues
+
+- **Issue**: Can't connect to database with `localhost`
+
+  - **Solution**: Try using `127.0.0.1` instead in your connection string
+
+- **Issue**: "Connection refused" error
+  - **Solution**: Make sure Docker is running and the container is up
+  - **Check**: `docker ps` to confirm PostgreSQL container is running
+
+### JWT Authentication Issues
+
+- **Issue**: Invalid token errors
+  - **Solution**: Make sure you've run `npm run local-keys` to generate keys
+  - **Check**: `.env` file for JWT-related environment variables
+
+### Prisma Client Generation Errors
+
+- **Issue**: Prisma client not found
+
+  - **Solution**: Run `npm run prisma-generate`
+
+- **Issue**: Migration errors
+  - **Solution**: Check your database connection and try `npm run db-reset`
+
+## Administering the EFS service instance
+
+- connect to the instance using AWS SSM Connect (go to AWS -> EC2 -> Find the service instance -> Connect -> Connect using SSM)
+
+then get into the ubuntu user and mount the volume
+
+```bash
+sudo su - ubuntu
+cd ~
+./mountefs.sh
+```
+
+This should mount the data into `/efs/data` with `/efs/data/reefguide` being the targeted data directory.
