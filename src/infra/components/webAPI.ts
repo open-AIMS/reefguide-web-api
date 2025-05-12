@@ -12,7 +12,7 @@ import * as r53 from 'aws-cdk-lib/aws-route53';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
-import { WebAPIConfig } from '../infra_config';
+import { WebAPIConfig } from '../infraConfig';
 
 /**
  * Properties for the WebAPI construct

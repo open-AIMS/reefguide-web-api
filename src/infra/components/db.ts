@@ -13,8 +13,25 @@ export interface DbProps {
 }
 
 export class Db extends Construct {
+  public readonly credsArn: string;
+  public readonly arn: string;
+  public readonly endpoint: rds.Endpoint;
+  public readonly databaseId: string;
+
   constructor(scope: Construct, id: string, props: DbProps) {
     super(scope, id);
+
+    // Manually construct an sg to allow 5432 port inbound access
+    const sg = new ec2.SecurityGroup(this, 'db-sg', {
+      vpc: props.vpc,
+      allowAllOutbound: true,
+      description: 'Provides port 5432 access for DB',
+    });
+    sg.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(5432),
+      'Allows 5432 inbound access for psql',
+    );
 
     // Create the RDS instance
     const instance = new rds.DatabaseInstance(this, 'instance', {
@@ -22,16 +39,17 @@ export class Db extends Construct {
         version: rds.PostgresEngineVersion.VER_16_4,
       }),
       vpc: props.vpc,
+      securityGroups: [sg],
       allocatedStorage: props.storageGb ?? 50,
       // Major version migrations are not needed
       allowMajorVersionUpgrade: false,
       // This can cause issues when version mismatches from schema
       autoMinorVersionUpgrade: false,
       // Automatically build a password
-      credentials: rds.Credentials.fromGeneratedSecret('admin'),
+      credentials: rds.Credentials.fromGeneratedSecret('reefguide'),
       // We don't want IAM authentication for now - just use user/pass so it's
-      // easy for non AWS staff to manage the DB TODO consider security
-      // implications here
+      // easy for non AWS staff to manage the DB
+      // TODO consider security implications here
       iamAuthentication: false,
       // T4G small by default
       instanceType: ec2.InstanceType.of(
@@ -50,6 +68,11 @@ export class Db extends Construct {
     });
 
     // Outputs
+    this.credsArn = instance.secret?.secretArn ?? 'unknown';
+    this.arn = instance.instanceArn;
+    this.endpoint = instance.instanceEndpoint;
+    this.databaseId = instance.instanceIdentifier;
+
     new CfnOutput(this, 'dbinfo', {
       value: JSON.stringify({
         creds: instance.secret?.secretArn ?? 'unknown',

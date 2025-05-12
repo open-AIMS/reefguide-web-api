@@ -5,7 +5,7 @@ import { Construct } from 'constructs';
 import { ReefGuideNetworking } from './components/networking';
 import { ReefGuideAPI } from './components/reefGuideAPI';
 import { WebAPI } from './components/webAPI';
-import { DeploymentConfig } from './infra_config';
+import { DeploymentConfig } from './infraConfig';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
@@ -97,8 +97,10 @@ export class ReefguideWebApiStack extends cdk.Stack {
       certificate: primaryCert,
     });
 
-    // Setup RDS if desired
-    let db = undefined;
+    // Setup RDS if desired TODO it would be nice to automatically provide these
+    // credentials rather than require the user to inject them into the secret
+    // themselves! It creates a chicken and egg issue
+    let db: Db | undefined = undefined;
     if (config.db) {
       // Deploy RDS postgresql 16_4 instance if specified
       db = new Db(this, 'db', {

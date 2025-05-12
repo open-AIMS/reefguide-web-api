@@ -8,7 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 import axios from 'axios';
-import { ApiSecretConfig, ApiSecretConfigSchema } from './infra_config';
+import { ApiSecretConfig, ApiSecretConfigSchema } from './infraConfig';
 const serverlessExpress = require('@codegenie/serverless-express');
 
 // persist this between invocations so we aren't repeatedly spinning up express

@@ -5,7 +5,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { ReefGuideFrontendConfig } from '../infra_config';
+import { ReefGuideFrontendConfig } from '../infraConfig';
 
 /**
  * Properties for the ReefGuideFrontend construct
