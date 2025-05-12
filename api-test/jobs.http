@@ -85,6 +85,7 @@ Authorization: Bearer {{authToken}}
 
 ### Submit successful job result
 POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
+Authorization: Bearer {{authToken}}
 Content-Type: {{contentType}}
 
 {
@@ -95,6 +96,7 @@ Content-Type: {{contentType}}
 
 ### Submit failed job result
 POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
+Authorization: Bearer {{authToken}}
 Content-Type: {{contentType}}
 
 {
@@ -159,6 +161,7 @@ Authorization: Bearer {{authToken}}
 ### Try to assign already assigned job
 POST {{baseUrl}}/jobs/assign
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 {
     "jobId": {{jobId}},
@@ -169,6 +172,7 @@ Content-Type: {{contentType}}
 ### Try to submit result for non-existent assignment
 POST {{baseUrl}}/jobs/assignments/999999/result
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 {
     "status": "SUCCEEDED",
@@ -178,6 +182,7 @@ Content-Type: {{contentType}}
 ### Try to submit result with invalid status
 POST {{baseUrl}}/jobs/assignments/{{assignmentId}}/result
 Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
 
 {
     "status": "INVALID_STATUS",
@@ -195,6 +200,7 @@ Authorization: Bearer {{authToken}}
 
 ### Try to download results of incomplete job
 # Create new job for this test
+# @name createJob2
 POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
@@ -202,9 +208,12 @@ Authorization: Bearer {{authToken}}
 {
     "type": "CRITERIA_POLYGONS",
     "inputPayload": {
-        "id" : 1
+        "id" : 1000
     }
 }
+
+### Store the job ID for further operations
+@jobId = {{createJob2.response.body.jobId}}
 
 ### Try download (should fail as job is not complete)
 GET {{baseUrl}}/jobs/{{jobId}}/download
