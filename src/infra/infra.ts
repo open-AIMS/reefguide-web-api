@@ -100,10 +100,9 @@ export class ReefguideWebApiStack extends cdk.Stack {
     // Setup RDS if desired TODO it would be nice to automatically provide these
     // credentials rather than require the user to inject them into the secret
     // themselves! It creates a chicken and egg issue
-    let db: Db | undefined = undefined;
     if (config.db) {
       // Deploy RDS postgresql 16_4 instance if specified
-      db = new Db(this, 'db', {
+      new Db(this, 'db', {
         vpc: networking.vpc,
         instanceSize: config.db.instanceSize,
         storageGb: config.db.storageGb,
