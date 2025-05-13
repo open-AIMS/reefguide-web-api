@@ -181,9 +181,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
           serverPort: 3000,
 
           // Launch the worker
-          command: [
-            'using ReefGuideAPI; ReefGuideAPI.start_worker()',
-          ],
+          command: ['using ReefGuideAPI; ReefGuideAPI.start_worker()'],
           desiredMinCapacity: 0,
           desiredMaxCapacity: 5,
           scaleUpThreshold: 1,
