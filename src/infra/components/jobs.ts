@@ -1,6 +1,7 @@
 import { JobType } from '@prisma/client';
 import { Annotations, Duration, Stack } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as efs from 'aws-cdk-lib/aws-efs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -30,6 +31,39 @@ export interface JobTypeConfig {
   command: string[];
 
   healthCheck?: ecs.HealthCheck;
+
+  // efs mount config
+  efsMounts?: {
+    // Want to include volumes? NOTE: Ensure it follows this format:
+    /**
+     * {
+     *  // for example
+     *  name: 'efs-volume',
+     *  efsVolumeConfiguration: {
+     *    fileSystemId: fileSystem.fileSystemId,
+     *    // for example
+     *    rootDirectory: '/data/reefguide',
+     *    transitEncryption: 'ENABLED',
+     *    authorizationConfig: { iam: 'ENABLED' },
+     *  },
+     * }
+     */
+    volumes?: ecs.Volume[];
+
+    // Corresponding mount points e.g. for the above
+    /**
+     *  {
+     *    sourceVolume: 'efs-volume',
+     *    // This is where to mount the EFS in the container
+     *    containerPath: '/data/reefguide',
+     *    readOnly: false,
+     *  }
+     */
+    mountPoints?: ecs.MountPoint[];
+
+    // File systems to grant rw access to
+    efsReadWrite?: efs.IFileSystem[];
+  };
 }
 
 export interface JobSystemProps {
@@ -113,8 +147,16 @@ export class JobSystem extends Construct {
       // Grant task role access to S3 bucket
       this.storageBucket.grantReadWrite(taskDef.taskRole);
 
+      // Add efs config if necessary
+      if (workerConfig.efsMounts) {
+        // Add vols
+        for (const vol of workerConfig.efsMounts.volumes ?? []) {
+          taskDef.addVolume(vol);
+        }
+      }
+
       // Add container to task definition
-      taskDef.addContainer(`${jobId}-container`, {
+      const containerDfn = taskDef.addContainer(`${jobId}-container`, {
         // This specifies the image to be used - should be in the full format
         // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
         image: ecs.ContainerImage.fromRegistry(workerConfig.workerImage),
@@ -147,6 +189,17 @@ export class JobSystem extends Construct {
 
       for (const jobType of workerConfig.jobTypes) {
         this.taskDefinitions[jobType] = taskDef;
+      }
+
+      for (const mountPoint of workerConfig.efsMounts?.mountPoints ?? []) {
+        containerDfn.addMountPoints(mountPoint);
+      }
+
+      for (const fs of workerConfig.efsMounts?.efsReadWrite ?? []) {
+        // Let the task r/w the EFS
+        fs.grantReadWrite(taskDef.taskRole);
+        // Also add to the execution role
+        fs.grantReadWrite(taskDef.executionRole!);
       }
     }
 

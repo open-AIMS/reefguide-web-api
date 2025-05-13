@@ -187,6 +187,29 @@ export class ReefguideWebApiStack extends cdk.Stack {
           desiredMaxCapacity: 5,
           scaleUpThreshold: 1,
           cooldownSeconds: 60,
+
+          // Mount up the reefguide API shared storage
+          efsMounts: {
+            efsReadWrite: [reefGuideApi.efs],
+            volumes: [
+              {
+                name: 'efs-volume',
+                efsVolumeConfiguration: {
+                  fileSystemId: reefGuideApi.efs.fileSystemId,
+                  rootDirectory: '/data/reefguide',
+                  transitEncryption: 'ENABLED',
+                  authorizationConfig: { iam: 'ENABLED' },
+                },
+              },
+            ],
+            mountPoints: [
+              {
+                sourceVolume: 'efs-volume',
+                containerPath: '/data/reefguide',
+                readOnly: false,
+              },
+            ],
+          },
         },
       ],
       workerCreds,

@@ -52,15 +52,28 @@ export const jobTypeSchemas: JobSchemaMap = {
   SUITABILITY_ASSESSMENT: {
     input: z
       .object({
-        // TODO define input
+        // High level config
+        region: z.string().describe('Region for assessment'),
+        reef_type: z.string().describe('The type of reef, slopes or flats'),
+        // Criteria
+        depth_min: z.number().describe('The depth range (min)'),
+        depth_max: z.number().describe('The depth range (max)'),
+        slope_min: z.number().describe('The slope range (min)'),
+        slope_max: z.number().describe('The slope range (max)'),
+        rugosity_min: z.number().describe('The rugosity range (min)'),
+        rugosity_max: z.number().describe('The rugosity range (max)'),
+        threshold: z.number().describe('Suitability threshold (min)'),
       })
       .strict(),
     result: z
       .object({
-        // TODO define output
+        geojson_path: z
+          .string()
+          .describe(
+            'Relative path in job storage location to the GeoJSON file containing assessment results',
+          ),
       })
-      .strict()
-      .optional(),
+      .strict(),
   },
 };
 
