@@ -182,11 +182,6 @@ export class ReefguideWebApiStack extends cdk.Stack {
 
           // Launch the worker
           command: [
-            'julia',
-            '--project=@reefguide',
-            '-t',
-            'auto,1',
-            '-e',
             'using ReefGuideAPI; ReefGuideAPI.start_worker()',
           ],
           desiredMinCapacity: 0,
