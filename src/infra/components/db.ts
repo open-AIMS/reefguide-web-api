@@ -40,6 +40,8 @@ export class Db extends Construct {
       }),
       vpc: props.vpc,
       securityGroups: [sg],
+      // Create a default DB for this application
+      databaseName: 'reefguide',
       allocatedStorage: props.storageGb ?? 50,
       // Major version migrations are not needed
       allowMajorVersionUpgrade: false,
