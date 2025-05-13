@@ -10,6 +10,7 @@ import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Db } from './components/db';
+import { JobType } from '@prisma/client';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -167,10 +168,10 @@ export class ReefguideWebApiStack extends cdk.Stack {
         memoryLimitMiB: 512,
         pollIntervalMs: 5000,
       },
-      jobTypes: {
-        // TODO we may want to deploy one worker configuration to handle
-        // multiple job types
-        CRITERIA_POLYGONS: {
+      workers: [
+        {
+          // This worker handles both tests and suitability assessments
+          jobTypes: [JobType.SUITABILITY_ASSESSMENT, JobType.TEST],
           // This specifies the image to be used - should be in the full format
           // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
           workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
@@ -187,7 +188,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
           scaleUpThreshold: 1,
           cooldownSeconds: 60,
         },
-      },
+      ],
       workerCreds,
       managerCreds,
     });

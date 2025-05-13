@@ -48,7 +48,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1
     }
@@ -64,7 +64,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 ### Poll for specific job type
-GET {{baseUrl}}/jobs/poll?jobType=CRITERIA_POLYGONS
+GET {{baseUrl}}/jobs/poll?jobType=TEST
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
@@ -128,7 +128,7 @@ POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1
     }
@@ -152,7 +152,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "invalidField": true
     }
@@ -206,7 +206,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1000
     }

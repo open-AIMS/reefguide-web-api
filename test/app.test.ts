@@ -703,13 +703,13 @@ describe('API', () => {
         // Create a test job
         const job = await prisma.job.create({
           data: {
-            type: JobType.CRITERIA_POLYGONS,
+            type: JobType.TEST,
             status: JobStatus.PENDING,
             user_id: user1Id,
             input_payload: {},
             hash: await new JobService().generateJobHash({
               payload: {},
-              jobType: 'CRITERIA_POLYGONS',
+              jobType: 'TEST',
             }),
           },
         });
@@ -740,7 +740,7 @@ describe('API', () => {
             const res = await authRequest(app, 'user1')
               .post('/api/jobs')
               .send({
-                type: JobType.CRITERIA_POLYGONS,
+                type: JobType.TEST,
                 inputPayload: {
                   id: randomInt(10000),
                 },
@@ -767,7 +767,7 @@ describe('API', () => {
             await authRequest(app, 'user1')
               .post('/api/jobs')
               .send({
-                type: JobType.CRITERIA_POLYGONS,
+                type: JobType.TEST,
                 inputPayload: {
                   invalidField: true,
                 },
@@ -781,7 +781,7 @@ describe('API', () => {
             await authRequest(app, 'user1')
               .post('/api/jobs')
               .send({
-                type: JobType.CRITERIA_POLYGONS,
+                type: JobType.TEST,
                 inputPayload: {
                   id: randomInt(10000),
                 },
@@ -805,7 +805,7 @@ describe('API', () => {
             await authRequest(app, 'user1')
               .post('/api/jobs')
               .send({
-                type: JobType.CRITERIA_POLYGONS,
+                type: JobType.TEST,
                 inputPayload: {
                   id: randomInt(10000),
                 },
@@ -814,14 +814,12 @@ describe('API', () => {
 
             const res = await authRequest(app, 'user1')
               .get('/api/jobs/poll')
-              .query({ jobType: JobType.CRITERIA_POLYGONS })
+              .query({ jobType: JobType.TEST })
               .expect(200);
 
             expect(res.body.jobs).toBeInstanceOf(Array);
             expect(
-              res.body.jobs.every(
-                (job: any) => job.type === JobType.CRITERIA_POLYGONS,
-              ),
+              res.body.jobs.every((job: any) => job.type === JobType.TEST),
             ).toBe(true);
           });
 
@@ -846,7 +844,7 @@ describe('API', () => {
             const newJob = await authRequest(app, 'user1')
               .post('/api/jobs')
               .send({
-                type: JobType.CRITERIA_POLYGONS,
+                type: JobType.TEST,
                 inputPayload: {
                   id: randomInt(10000),
                 },

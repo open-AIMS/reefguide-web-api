@@ -39,16 +39,25 @@ type JobExpiryMap = {
  * Each job type must define an input schema and may optionally define a result schema.
  */
 export const jobTypeSchemas: JobSchemaMap = {
-  CRITERIA_POLYGONS: {
+  TEST: {
     input: z
       .object({
-        // TODO actual payload
+        // This is just to break up the hash
         id: z.number(),
+      })
+      .strict(),
+    result: z.object({}).strict().optional(),
+  },
+  // The suitability assessment job takes in regional parameters and returns the location of the file relative to the job storage location.
+  SUITABILITY_ASSESSMENT: {
+    input: z
+      .object({
+        // TODO define input
       })
       .strict(),
     result: z
       .object({
-        // TODO actual payload
+        // TODO define output
       })
       .strict()
       .optional(),
@@ -56,7 +65,11 @@ export const jobTypeSchemas: JobSchemaMap = {
 };
 
 export const jobExpiryMap: JobExpiryMap = {
-  CRITERIA_POLYGONS: {
+  TEST: {
+    // expires in one hour
+    expiryMinutes: 60,
+  },
+  SUITABILITY_ASSESSMENT: {
     // expires in one hour
     expiryMinutes: 60,
   },
