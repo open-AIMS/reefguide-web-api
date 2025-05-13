@@ -5,10 +5,11 @@ import { Construct } from 'constructs';
 import { ReefGuideNetworking } from './components/networking';
 import { ReefGuideAPI } from './components/reefGuideAPI';
 import { WebAPI } from './components/webAPI';
-import { DeploymentConfig } from './infra_config';
+import { DeploymentConfig } from './infraConfig';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
+import { Db } from './components/db';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -96,6 +97,18 @@ export class ReefguideWebApiStack extends cdk.Stack {
       certificate: primaryCert,
     });
 
+    // Setup RDS if desired TODO it would be nice to automatically provide these
+    // credentials rather than require the user to inject them into the secret
+    // themselves! It creates a chicken and egg issue
+    if (config.db) {
+      // Deploy RDS postgresql 16_4 instance if specified
+      new Db(this, 'db', {
+        vpc: networking.vpc,
+        instanceSize: config.db.instanceSize,
+        storageGb: config.db.storageGb,
+      });
+    }
+
     // ReefGuideAPI.jl
     // ===============
 
@@ -168,14 +181,7 @@ export class ReefguideWebApiStack extends cdk.Stack {
           serverPort: 3000,
 
           // Launch the worker
-          command: [
-            'julia',
-            '--project=@reefguide',
-            '-t',
-            'auto,1',
-            '-e',
-            'using ReefGuideAPI; ReefGuideAPI.start_worker()',
-          ],
+          command: ['using ReefGuideAPI; ReefGuideAPI.start_worker()'],
           desiredMinCapacity: 0,
           desiredMaxCapacity: 5,
           scaleUpThreshold: 1,

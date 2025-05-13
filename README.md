@@ -575,6 +575,73 @@ Example:
    npx cdk deploy
    ```
 
+### A note on the secret string
+
+The above `npm run aws-keys` script will create a secret with the following keys:
+
+- `JWT_PRIVATE_KEY`
+- `JWT_PUBLIC_KEY`
+- `JWT_KEY_ID`
+
+However it will not include the
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+
+This has been intentionally left out of the CDK managed portion of the infrastructure to allow easily plugging in any PostgreSQL DB connection string, however it does mean additional setup.
+
+You can either:
+
+- use the provided RDS DB
+- use your own DB
+
+#### Using the RDS DB
+
+In your configuration, include the `db` field like so:
+
+```json
+  "db": {
+    "instanceSize": "small",
+    "storageGb": 50
+  },
+```
+
+The instance size is one of the standard CDK RDS T4G instance size enums - defined here for reference [ec2 instance size](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ec2.InstanceSize.html).
+
+Deploy the system, then go and look at the auto generated credentials secret in AWS Secret Manager, and retrieve the host, username and password. Build the connection strings with the following format:
+
+```text
+DATABASE_URL="postgresql://reefguide:<PASSWORD>@<HOST>/reefguide?sslmode=require?connect_timeout=15&pool_timeout=15"
+DIRECT_URL="postgresql://reefguide:<PASSWORD>@<HOST>/reefguide?connect_timeout=15&pool_timeout=15"
+```
+
+replacing the password and host from the connection secret.
+
+Update the secret which you generated earlier, using the AWS console, to include the
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+
+keys/values as above.
+
+Your web-api will now use this database.
+
+#### Using your own DB
+
+If you would like to use an alternative psql DB, then
+
+1. do not include the `db` field in the config (to avoid deploying an unused instance)
+2. build your own db and associated connection strings in the below format (noting you'll need to specify the db name as prisma will target this DB)
+
+```text
+DATABASE_URL="postgresql://reefguide:<PASSWORD>@<HOST>/<DB NAME>?sslmode=require?connect_timeout=15&pool_timeout=15"
+DIRECT_URL="postgresql://reefguide:<PASSWORD>@<HOST>/<DB NAME>?connect_timeout=15&pool_timeout=15"
+```
+
+3. update your generated keys secret with these key/values
+
+Your web-api will now target your DB.
+
 ## CDK Infrastructure
 
 ### Components

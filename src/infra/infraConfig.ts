@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as z from 'zod';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
 export const ReefGuideFrontendConfigSchema = z.object({
   /** The index document of the website */
@@ -68,7 +69,6 @@ export const ApiSecretConfigSchema = z.object({
   DATABASE_URL: z.string(),
   // prisma direct url for migrations etc
   DIRECT_URL: z.string(),
-
   // JWT configuration
   JWT_PRIVATE_KEY: z.string(),
   JWT_PUBLIC_KEY: z.string(),
@@ -96,6 +96,13 @@ const DomainsConfigSchema = z.object({
   webAPI: z.string().default('web-api'),
   /** The subdomain prefix for the frontend app */
   frontend: z.string().default('app'),
+});
+
+const DatabaseConfigSchema = z.object({
+  /** How large is the instance? */
+  instanceSize: z.nativeEnum(ec2.InstanceSize).default(ec2.InstanceSize.SMALL),
+  /** How many GB allocated? */
+  storageGb: z.number().min(20),
 });
 
 // Define the configuration schema using Zod
@@ -132,6 +139,10 @@ export const DeploymentConfigSchema = z.object({
 
   // Frontend
   frontend: ReefGuideFrontendConfigSchema,
+
+  // Database configuration - if none provided you will need to supply your own
+  // DB connection strings
+  db: DatabaseConfigSchema.optional(),
 });
 export type DeploymentConfig = z.infer<typeof DeploymentConfigSchema>;
 
