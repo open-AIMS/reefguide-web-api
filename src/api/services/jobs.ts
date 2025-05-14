@@ -60,9 +60,11 @@ export const jobTypeSchemas: JobSchemaMap = {
         depth_max: z.number().describe('The depth range (max)'),
         slope_min: z.number().describe('The slope range (min)'),
         slope_max: z.number().describe('The slope range (max)'),
+        x_dist: z.number().describe('Length (m) of the target polygon'),
+        y_dist: z.number().describe('Width (m) of the target polygon'),
         rugosity_min: z.number().describe('The rugosity range (min)'),
         rugosity_max: z.number().describe('The rugosity range (max)'),
-        threshold: z.number().describe('Suitability threshold (min)'),
+        threshold: z.number().describe('Suitability threshold integer (min)'),
       })
       .strict(),
     result: z

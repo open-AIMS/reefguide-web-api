@@ -41,7 +41,7 @@ Content-Type: {{contentType}}
 
 ### JOB SYSTEM TESTS
 
-### Create a new criteria polygons job
+### Create a new test job
 # @name createJob
 POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
@@ -51,6 +51,29 @@ Authorization: Bearer {{authToken}}
     "type": "TEST",
     "inputPayload": {
         "id" : 1
+    }
+}
+
+### Create a new suitability assessment job
+# @name createJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "SUITABILITY_ASSESSMENT",
+    "inputPayload": {
+        "region": "Cairns-Cooktown",
+        "reef_type": "slopes",
+        "depth_min": -7.0,
+        "depth_max": -3.9,
+        "slope_min": 0.2,
+        "slope_max": 40.0,
+        "rugosity_min": 0.0,
+        "rugosity_max": 6.0,
+        "x_dist" : 450,
+        "y_dist" : 20,
+        "threshold": 95
     }
 }
 

@@ -177,8 +177,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
           workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
           // TODO tinker with performance here - we can make these chunky if
           // needed as they should run transiently
-          cpu: 1024,
-          memoryLimitMiB: 2048,
+          cpu: 4096,
+          memoryLimitMiB: 8192,
           serverPort: 3000,
 
           // Launch the worker
