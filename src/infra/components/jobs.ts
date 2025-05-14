@@ -1,5 +1,7 @@
-import { Duration, Stack } from 'aws-cdk-lib';
+import { JobType } from '@prisma/client';
+import { Annotations, Duration, Stack } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as efs from 'aws-cdk-lib/aws-efs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -9,6 +11,9 @@ import { Construct } from 'constructs';
 
 // Define job type configuration
 export interface JobTypeConfig {
+  // Which job types does this worker handle?
+  jobTypes: JobType[];
+
   // Task configuration
   cpu: number;
   memoryLimitMiB: number;
@@ -25,7 +30,44 @@ export interface JobTypeConfig {
   serverPort: number;
   command: string[];
 
+  // Additional environment variables
+  env?: Record<string, string>;
+  secrets?: Record<string, ecs.Secret>;
+
   healthCheck?: ecs.HealthCheck;
+
+  // efs mount config
+  efsMounts?: {
+    // Want to include volumes? NOTE: Ensure it follows this format:
+    /**
+     * {
+     *  // for example
+     *  name: 'efs-volume',
+     *  efsVolumeConfiguration: {
+     *    fileSystemId: fileSystem.fileSystemId,
+     *    // for example
+     *    rootDirectory: '/data/reefguide',
+     *    transitEncryption: 'ENABLED',
+     *    authorizationConfig: { iam: 'ENABLED' },
+     *  },
+     * }
+     */
+    volumes?: ecs.Volume[];
+
+    // Corresponding mount points e.g. for the above
+    /**
+     *  {
+     *    sourceVolume: 'efs-volume',
+     *    // This is where to mount the EFS in the container
+     *    containerPath: '/data/reefguide',
+     *    readOnly: false,
+     *  }
+     */
+    mountPoints?: ecs.MountPoint[];
+
+    // File systems to grant rw access to
+    efsReadWrite?: efs.IFileSystem[];
+  };
 }
 
 export interface JobSystemProps {
@@ -44,7 +86,7 @@ export interface JobSystemProps {
   };
 
   // Configuration for each job type
-  jobTypes: Record<string, JobTypeConfig>;
+  workers: JobTypeConfig[];
 
   // The credentials to be used by the manager and worker nodes
   managerCreds: sm.Secret;
@@ -63,6 +105,20 @@ export class JobSystem extends Construct {
 
   constructor(scope: Construct, id: string, props: JobSystemProps) {
     super(scope, id);
+
+    // Ensure there are not duplicate job type configurations
+    const allJobs = props.workers
+      .map(w => w.jobTypes)
+      .reduce((allJobs, currentJobs) => {
+        return allJobs.concat(currentJobs);
+      }, []);
+    const uniqueJobs = new Set(allJobs);
+    if (uniqueJobs.size !== allJobs.length) {
+      Annotations.of(this).addError(
+        'The configured workers contains duplicated task definitions for a job type.',
+      );
+      return;
+    }
 
     // Create S3 bucket for job results
     this.storageBucket = new s3.Bucket(this, 'job-storage', {
@@ -85,36 +141,42 @@ export class JobSystem extends Construct {
     // Create task definitions for each job type
     this.taskDefinitions = {};
 
-    for (const [jobType, config] of Object.entries(props.jobTypes)) {
-      const taskDef = new ecs.FargateTaskDefinition(
-        this,
-        `${jobType}-task-def`,
-        {
-          cpu: config.cpu,
-          memoryLimitMiB: config.memoryLimitMiB,
-        },
-      );
+    for (const workerConfig of props.workers) {
+      const jobId = workerConfig.jobTypes.join('-');
+      const taskDef = new ecs.FargateTaskDefinition(this, `${jobId}-task-def`, {
+        cpu: workerConfig.cpu,
+        memoryLimitMiB: workerConfig.memoryLimitMiB,
+      });
 
       // Grant task role access to S3 bucket
       this.storageBucket.grantReadWrite(taskDef.taskRole);
 
+      // Add efs config if necessary
+      if (workerConfig.efsMounts) {
+        // Add vols
+        for (const vol of workerConfig.efsMounts.volumes ?? []) {
+          taskDef.addVolume(vol);
+        }
+      }
+
       // Add container to task definition
-      taskDef.addContainer(`${jobType}-container`, {
+      const containerDfn = taskDef.addContainer(`${jobId}-container`, {
         // This specifies the image to be used - should be in the full format
         // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
-        image: ecs.ContainerImage.fromRegistry(config.workerImage),
+        image: ecs.ContainerImage.fromRegistry(workerConfig.workerImage),
         // Docker command
-        command: config.command,
+        command: workerConfig.command,
         logging: ecs.LogDrivers.awsLogs({
-          streamPrefix: `worker-${jobType.toLowerCase()}`,
+          streamPrefix: `worker-${jobId.toLowerCase()}`,
           logRetention: logs.RetentionDays.ONE_WEEK,
         }),
         environment: {
           API_ENDPOINT: props.apiEndpoint,
           AWS_REGION: Stack.of(this).region,
-          // TODO might be multiple job types here
-          JOB_TYPES: jobType,
+          JOB_TYPES: workerConfig.jobTypes.join(','),
           S3_BUCKET_NAME: this.storageBucket.bucketName,
+          // Custom additional environment variables
+          ...(workerConfig.env ?? {}),
         },
         // pass in the worker creds
         // TODO do we want separate users for each worker?
@@ -127,11 +189,26 @@ export class JobSystem extends Construct {
             props.workerCreds,
             'password',
           ),
+          // Custom secrets
+          ...(workerConfig.secrets ?? {}),
         },
-        healthCheck: config.healthCheck,
+        healthCheck: workerConfig.healthCheck,
       });
 
-      this.taskDefinitions[jobType] = taskDef;
+      for (const jobType of workerConfig.jobTypes) {
+        this.taskDefinitions[jobType] = taskDef;
+      }
+
+      for (const mountPoint of workerConfig.efsMounts?.mountPoints ?? []) {
+        containerDfn.addMountPoints(mountPoint);
+      }
+
+      for (const fs of workerConfig.efsMounts?.efsReadWrite ?? []) {
+        // Let the task r/w the EFS
+        fs.grantReadWrite(taskDef.taskRole);
+        // Also add to the execution role
+        fs.grantReadWrite(taskDef.executionRole!);
+      }
     }
 
     // Create task definition for capacity manager
@@ -275,18 +352,21 @@ export class JobSystem extends Construct {
 
     // Add task definition configurations to capacity manager environment
     const taskDefEnvVars: Record<string, string> = {};
-    for (const [jobType, config] of Object.entries(props.jobTypes)) {
-      const taskDef = this.taskDefinitions[jobType];
-      taskDefEnvVars[`${jobType}_TASK_DEF`] = taskDef.taskDefinitionArn;
-      taskDefEnvVars[`${jobType}_CLUSTER`] = props.cluster.clusterArn;
-      taskDefEnvVars[`${jobType}_MIN_CAPACITY`] =
-        config.desiredMinCapacity.toString();
-      taskDefEnvVars[`${jobType}_MAX_CAPACITY`] =
-        config.desiredMaxCapacity.toString();
-      taskDefEnvVars[`${jobType}_SCALE_THRESHOLD`] =
-        config.scaleUpThreshold.toString();
-      taskDefEnvVars[`${jobType}_COOLDOWN`] = config.cooldownSeconds.toString();
-      taskDefEnvVars[`${jobType}_SECURITY_GROUP`] = workerSg.securityGroupId;
+    for (const workerConfig of props.workers) {
+      for (const jobType of workerConfig.jobTypes) {
+        const taskDef = this.taskDefinitions[jobType];
+        taskDefEnvVars[`${jobType}_TASK_DEF`] = taskDef.taskDefinitionArn;
+        taskDefEnvVars[`${jobType}_CLUSTER`] = props.cluster.clusterArn;
+        taskDefEnvVars[`${jobType}_MIN_CAPACITY`] =
+          workerConfig.desiredMinCapacity.toString();
+        taskDefEnvVars[`${jobType}_MAX_CAPACITY`] =
+          workerConfig.desiredMaxCapacity.toString();
+        taskDefEnvVars[`${jobType}_SCALE_THRESHOLD`] =
+          workerConfig.scaleUpThreshold.toString();
+        taskDefEnvVars[`${jobType}_COOLDOWN`] =
+          workerConfig.cooldownSeconds.toString();
+        taskDefEnvVars[`${jobType}_SECURITY_GROUP`] = workerSg.securityGroupId;
+      }
     }
 
     // Update capacity manager container with task definition configurations

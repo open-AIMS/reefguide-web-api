@@ -1046,7 +1046,7 @@ Example job type configuration:
 
 ```typescript
 const jobTypeSchemas = {
-  CRITERIA_POLYGONS: {
+  SUITABILITY_ASSESSMENT: {
     input: z.object({
       fieldsHere: z.string(),
     }),

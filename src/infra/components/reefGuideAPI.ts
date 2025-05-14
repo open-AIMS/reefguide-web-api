@@ -54,6 +54,9 @@ export class ReefGuideAPI extends Construct {
   /** A bucket used for intermediary data transfer */
   public readonly dataBucket: s3.Bucket;
 
+  /** Creates a file system - exposed here */
+  public readonly efs: efs.FileSystem;
+
   constructor(scope: Construct, id: string, props: ReefGuideAPIProps) {
     super(scope, id);
 
@@ -88,6 +91,7 @@ export class ReefGuideAPI extends Construct {
       encrypted: true,
       removalPolicy: RemovalPolicy.RETAIN,
     });
+    this.efs = fileSystem;
 
     // CONTAINER SETUP
     // ================

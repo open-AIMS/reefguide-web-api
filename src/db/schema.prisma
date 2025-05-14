@@ -99,9 +99,8 @@ enum StorageScheme {
 }
 
 enum JobType {
-    CRITERIA_POLYGONS
-    // Could add other job types here - relate to valid input/output schemas as
-    // well as job specification
+    TEST
+    SUITABILITY_ASSESSMENT
 }
 
 enum JobStatus {

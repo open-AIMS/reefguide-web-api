@@ -41,21 +41,45 @@ Content-Type: {{contentType}}
 
 ### JOB SYSTEM TESTS
 
-### Create a new criteria polygons job
+### Create a new test job
 # @name createJob
 POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1
     }
 }
 
-### Store the job ID for further operations
+### Create a new suitability assessment job
+# @name createSuitabilityJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "SUITABILITY_ASSESSMENT",
+    "inputPayload": {
+        "region": "Cairns-Cooktown",
+        "reef_type": "slopes",
+        "depth_min": -7.0,
+        "depth_max": -3.9,
+        "slope_min": 0.2,
+        "slope_max": 40.0,
+        "rugosity_min": 0.0,
+        "rugosity_max": 6.0,
+        "x_dist" : 450,
+        "y_dist" : 20,
+        "threshold": 95
+    }
+}
+
+### Store the job IDs for further operations
 @jobId = {{createJob.response.body.jobId}}
+@jobId = {{createSuitabilityJob.response.body.jobId}}
 
 ### Poll for available jobs (worker endpoint)
 # @name pollJobs
@@ -64,7 +88,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 ### Poll for specific job type
-GET {{baseUrl}}/jobs/poll?jobType=CRITERIA_POLYGONS
+GET {{baseUrl}}/jobs/poll?jobType=TEST
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
@@ -128,7 +152,7 @@ POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1
     }
@@ -152,7 +176,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "invalidField": true
     }
@@ -206,7 +230,7 @@ Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
 {
-    "type": "CRITERIA_POLYGONS",
+    "type": "TEST",
     "inputPayload": {
         "id" : 1000
     }

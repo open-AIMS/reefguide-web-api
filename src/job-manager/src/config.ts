@@ -20,16 +20,32 @@ export const EnvVarsSchema = z.object({
   API_USERNAME: z.string().min(1, 'API username is required'),
   API_PASSWORD: z.string().min(1, 'API password is required'),
   VPC_ID: z.string(),
-  // CRITERIA_POLYGONS environment variables
-  CRITERIA_POLYGONS_TASK_DEF: z
+
+  // TEST environment variables
+  TEST_TASK_DEF: z.string().min(1, 'Task definition ARN is required'),
+  TEST_CLUSTER: z.string().min(1, 'Cluster ARN is required'),
+  TEST_MIN_CAPACITY: z.string().transform(val => parseInt(val)),
+  TEST_MAX_CAPACITY: z.string().transform(val => parseInt(val)),
+  TEST_SCALE_THRESHOLD: z.string().transform(val => parseInt(val)),
+  TEST_COOLDOWN: z.string().transform(val => parseInt(val)),
+  TEST_SECURITY_GROUP: z.string(),
+
+  // SUITABILITY_ASSESSMENT environment variables
+  SUITABILITY_ASSESSMENT_TASK_DEF: z
     .string()
     .min(1, 'Task definition ARN is required'),
-  CRITERIA_POLYGONS_CLUSTER: z.string().min(1, 'Cluster ARN is required'),
-  CRITERIA_POLYGONS_MIN_CAPACITY: z.string().transform(val => parseInt(val)),
-  CRITERIA_POLYGONS_MAX_CAPACITY: z.string().transform(val => parseInt(val)),
-  CRITERIA_POLYGONS_SCALE_THRESHOLD: z.string().transform(val => parseInt(val)),
-  CRITERIA_POLYGONS_COOLDOWN: z.string().transform(val => parseInt(val)),
-  CRITERIA_POLYGONS_SECURITY_GROUP: z.string(),
+  SUITABILITY_ASSESSMENT_CLUSTER: z.string().min(1, 'Cluster ARN is required'),
+  SUITABILITY_ASSESSMENT_MIN_CAPACITY: z
+    .string()
+    .transform(val => parseInt(val)),
+  SUITABILITY_ASSESSMENT_MAX_CAPACITY: z
+    .string()
+    .transform(val => parseInt(val)),
+  SUITABILITY_ASSESSMENT_SCALE_THRESHOLD: z
+    .string()
+    .transform(val => parseInt(val)),
+  SUITABILITY_ASSESSMENT_COOLDOWN: z.string().transform(val => parseInt(val)),
+  SUITABILITY_ASSESSMENT_SECURITY_GROUP: z.string(),
 });
 
 export const ConfigSchema = z.object({
@@ -58,14 +74,23 @@ export function loadConfig(): Config {
     apiEndpoint: env.API_ENDPOINT,
     region: env.AWS_REGION,
     jobTypes: {
-      CRITERIA_POLYGONS: {
-        taskDefinitionArn: env.CRITERIA_POLYGONS_TASK_DEF,
-        clusterArn: env.CRITERIA_POLYGONS_CLUSTER,
-        desiredMinCapacity: env.CRITERIA_POLYGONS_MIN_CAPACITY,
-        desiredMaxCapacity: env.CRITERIA_POLYGONS_MAX_CAPACITY,
-        scaleUpThreshold: env.CRITERIA_POLYGONS_SCALE_THRESHOLD,
-        cooldownSeconds: env.CRITERIA_POLYGONS_COOLDOWN,
-        securityGroup: env.CRITERIA_POLYGONS_SECURITY_GROUP,
+      TEST: {
+        taskDefinitionArn: env.TEST_TASK_DEF,
+        clusterArn: env.TEST_CLUSTER,
+        desiredMinCapacity: env.TEST_MIN_CAPACITY,
+        desiredMaxCapacity: env.TEST_MAX_CAPACITY,
+        scaleUpThreshold: env.TEST_SCALE_THRESHOLD,
+        cooldownSeconds: env.TEST_COOLDOWN,
+        securityGroup: env.TEST_SECURITY_GROUP,
+      },
+      SUITABILITY_ASSESSMENT: {
+        taskDefinitionArn: env.SUITABILITY_ASSESSMENT_TASK_DEF,
+        clusterArn: env.SUITABILITY_ASSESSMENT_CLUSTER,
+        desiredMinCapacity: env.SUITABILITY_ASSESSMENT_MIN_CAPACITY,
+        desiredMaxCapacity: env.SUITABILITY_ASSESSMENT_MAX_CAPACITY,
+        scaleUpThreshold: env.SUITABILITY_ASSESSMENT_SCALE_THRESHOLD,
+        cooldownSeconds: env.SUITABILITY_ASSESSMENT_COOLDOWN,
+        securityGroup: env.SUITABILITY_ASSESSMENT_SECURITY_GROUP,
       },
     },
     auth: {

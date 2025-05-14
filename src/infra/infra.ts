@@ -10,6 +10,7 @@ import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Db } from './components/db';
+import { JobType } from '@prisma/client';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -167,17 +168,17 @@ export class ReefguideWebApiStack extends cdk.Stack {
         memoryLimitMiB: 512,
         pollIntervalMs: 5000,
       },
-      jobTypes: {
-        // TODO we may want to deploy one worker configuration to handle
-        // multiple job types
-        CRITERIA_POLYGONS: {
+      workers: [
+        {
+          // This worker handles both tests and suitability assessments
+          jobTypes: [JobType.SUITABILITY_ASSESSMENT, JobType.TEST],
           // This specifies the image to be used - should be in the full format
           // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
           workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
           // TODO tinker with performance here - we can make these chunky if
           // needed as they should run transiently
-          cpu: 1024,
-          memoryLimitMiB: 2048,
+          cpu: 4096,
+          memoryLimitMiB: 8192,
           serverPort: 3000,
 
           // Launch the worker
@@ -186,8 +187,35 @@ export class ReefguideWebApiStack extends cdk.Stack {
           desiredMaxCapacity: 5,
           scaleUpThreshold: 1,
           cooldownSeconds: 60,
+
+          // This specifies where the config file path can be found for the
+          // worker task
+          env: { CONFIG_PATH: '/data/reefguide/config.toml' },
+
+          // Mount up the reefguide API shared storage
+          efsMounts: {
+            efsReadWrite: [reefGuideApi.efs],
+            volumes: [
+              {
+                name: 'efs-volume',
+                efsVolumeConfiguration: {
+                  fileSystemId: reefGuideApi.efs.fileSystemId,
+                  rootDirectory: '/data/reefguide',
+                  transitEncryption: 'ENABLED',
+                  authorizationConfig: { iam: 'ENABLED' },
+                },
+              },
+            ],
+            mountPoints: [
+              {
+                sourceVolume: 'efs-volume',
+                containerPath: '/data/reefguide',
+                readOnly: false,
+              },
+            ],
+          },
         },
-      },
+      ],
       workerCreds,
       managerCreds,
     });
