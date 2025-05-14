@@ -30,6 +30,10 @@ export interface JobTypeConfig {
   serverPort: number;
   command: string[];
 
+  // Additional environment variables
+  env?: Record<string, string>;
+  secrets?: Record<string, ecs.Secret>;
+
   healthCheck?: ecs.HealthCheck;
 
   // efs mount config
@@ -171,6 +175,8 @@ export class JobSystem extends Construct {
           AWS_REGION: Stack.of(this).region,
           JOB_TYPES: workerConfig.jobTypes.join(','),
           S3_BUCKET_NAME: this.storageBucket.bucketName,
+          // Custom additional environment variables
+          ...(workerConfig.env ?? {}),
         },
         // pass in the worker creds
         // TODO do we want separate users for each worker?
@@ -183,6 +189,8 @@ export class JobSystem extends Construct {
             props.workerCreds,
             'password',
           ),
+          // Custom secrets
+          ...(workerConfig.secrets ?? {}),
         },
         healthCheck: workerConfig.healthCheck,
       });

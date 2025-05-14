@@ -188,6 +188,10 @@ export class ReefguideWebApiStack extends cdk.Stack {
           scaleUpThreshold: 1,
           cooldownSeconds: 60,
 
+          // This specifies where the config file path can be found for the
+          // worker task
+          env: { CONFIG_PATH: '/data/reefguide/config.toml' },
+
           // Mount up the reefguide API shared storage
           efsMounts: {
             efsReadWrite: [reefGuideApi.efs],
