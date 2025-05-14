@@ -208,6 +208,8 @@ export class JobSystem extends Construct {
         fs.grantReadWrite(taskDef.taskRole);
         // Also add to the execution role
         fs.grantReadWrite(taskDef.executionRole!);
+        // Also allow connections from the sg
+        fs.connections.allowDefaultPortFrom(workerSg);
       }
     }
 
