@@ -55,7 +55,7 @@ Authorization: Bearer {{authToken}}
 }
 
 ### Create a new suitability assessment job
-# @name createJob
+# @name createSuitabilityJob
 POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
@@ -77,8 +77,9 @@ Authorization: Bearer {{authToken}}
     }
 }
 
-### Store the job ID for further operations
+### Store the job IDs for further operations
 @jobId = {{createJob.response.body.jobId}}
+@jobId = {{createSuitabilityJob.response.body.jobId}}
 
 ### Poll for available jobs (worker endpoint)
 # @name pollJobs
