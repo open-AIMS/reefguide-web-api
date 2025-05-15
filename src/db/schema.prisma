@@ -101,6 +101,7 @@ enum StorageScheme {
 enum JobType {
     TEST
     SUITABILITY_ASSESSMENT
+    REGIONAL_ASSESSMENT
 }
 
 enum JobStatus {

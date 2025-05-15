@@ -34,6 +34,20 @@ type JobExpiryMap = {
   };
 };
 
+const sharedCriteriaSchema = z.object({
+  // High level config
+  region: z.string().describe('Region for assessment'),
+  reef_type: z.string().describe('The type of reef, slopes or flats'),
+  // Criteria
+  depth_min: z.number().describe('The depth range (min)'),
+  depth_max: z.number().describe('The depth range (max)'),
+  slope_min: z.number().describe('The slope range (min)'),
+  slope_max: z.number().describe('The slope range (max)'),
+  rugosity_min: z.number().describe('The rugosity range (min)'),
+  rugosity_max: z.number().describe('The rugosity range (max)'),
+  threshold: z.number().describe('Suitability threshold integer (min)'),
+});
+
 /**
  * Schema definitions for each job type's input and output payloads.
  * Each job type must define an input schema and may optionally define a result schema.
@@ -50,21 +64,11 @@ export const jobTypeSchemas: JobSchemaMap = {
   },
   // The suitability assessment job takes in regional parameters and returns the location of the file relative to the job storage location.
   SUITABILITY_ASSESSMENT: {
-    input: z
-      .object({
-        // High level config
-        region: z.string().describe('Region for assessment'),
-        reef_type: z.string().describe('The type of reef, slopes or flats'),
-        // Criteria
-        depth_min: z.number().describe('The depth range (min)'),
-        depth_max: z.number().describe('The depth range (max)'),
-        slope_min: z.number().describe('The slope range (min)'),
-        slope_max: z.number().describe('The slope range (max)'),
+    // base criteria + x/y size
+    input: sharedCriteriaSchema
+      .extend({
         x_dist: z.number().describe('Length (m) of the target polygon'),
         y_dist: z.number().describe('Width (m) of the target polygon'),
-        rugosity_min: z.number().describe('The rugosity range (min)'),
-        rugosity_max: z.number().describe('The rugosity range (max)'),
-        threshold: z.number().describe('Suitability threshold integer (min)'),
       })
       .strict(),
     result: z
@@ -73,6 +77,19 @@ export const jobTypeSchemas: JobSchemaMap = {
           .string()
           .describe(
             'Relative path in job storage location to the GeoJSON file containing assessment results',
+          ),
+      })
+      .strict(),
+  },
+  REGIONAL_ASSESSMENT: {
+    // Just base criteria
+    input: sharedCriteriaSchema.strict(),
+    result: z
+      .object({
+        cog_path: z
+          .string()
+          .describe(
+            'Relative location of the COG file in the output directory',
           ),
       })
       .strict(),

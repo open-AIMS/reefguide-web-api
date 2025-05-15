@@ -174,7 +174,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
           jobTypes: [JobType.SUITABILITY_ASSESSMENT, JobType.TEST],
           // This specifies the image to be used - should be in the full format
           // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
-          workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
+          // TODO revert to latest
+          workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:feat/regional-assessment-job',
           // TODO tinker with performance here - we can make these chunky if
           // needed as they should run transiently
           cpu: 4096,
