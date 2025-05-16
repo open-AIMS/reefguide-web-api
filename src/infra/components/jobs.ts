@@ -129,6 +129,17 @@ export class JobSystem extends Construct {
           expiration: Duration.days(30),
         },
       ],
+      cors: [
+        {
+          // Needed for presigned URLs to work with various headers
+          allowedHeaders: ['*'],
+          // Typically only GET and PUT are needed for presigned operations
+          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT],
+          // TODO tighten this for security - okay for now as only presigned
+          // URLs exposed and want them to be easy to use from anywhere
+          allowedOrigins: ['*'],
+        },
+      ],
     });
 
     // Create a security group for worker tasks
