@@ -178,7 +178,6 @@ export class ReefguideWebApiStack extends cdk.Stack {
           ],
           // This specifies the image to be used - should be in the full format
           // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
-          // TODO revert to latest
           workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',
           // TODO tinker with performance here - we can make these chunky if
           // needed as they should run transiently
