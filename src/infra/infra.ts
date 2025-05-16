@@ -171,7 +171,11 @@ export class ReefguideWebApiStack extends cdk.Stack {
       workers: [
         {
           // This worker handles both tests and suitability assessments
-          jobTypes: [JobType.SUITABILITY_ASSESSMENT, JobType.TEST],
+          jobTypes: [
+            JobType.SUITABILITY_ASSESSMENT,
+            JobType.REGIONAL_ASSESSMENT,
+            JobType.TEST,
+          ],
           // This specifies the image to be used - should be in the full format
           // i.e. "ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest"
           workerImage: 'ghcr.io/open-aims/reefguideapi.jl/reefguide-src:latest',

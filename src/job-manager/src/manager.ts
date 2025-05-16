@@ -2,6 +2,7 @@ import { AssignPublicIp, ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 import { EC2Client, DescribeSubnetsCommand } from '@aws-sdk/client-ec2';
 import { Config, ConfigSchema, JobTypeConfig } from './config';
 import { AuthApiClient } from './authClient';
+import { JobType } from '@prisma/client';
 
 export class CapacityManager {
   private config: Config;
@@ -93,7 +94,7 @@ export class CapacityManager {
 
   private async adjustCapacity(jobsByType: Record<string, number>) {
     for (const [jobType, pendingCount] of Object.entries(jobsByType)) {
-      const config = this.config.jobTypes[jobType];
+      const config = this.config.jobTypes[jobType as JobType];
       if (!config) {
         console.warn(`No configuration found for job type: ${jobType}`);
         continue;
