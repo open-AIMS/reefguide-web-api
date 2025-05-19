@@ -10,60 +10,98 @@ import { Config, ConfigSchema, JobTypeConfig } from './config';
 import { AuthApiClient } from './authClient';
 import { JobType } from '@prisma/client';
 import { PollJobsResponse } from '../../api/jobs/routes';
+import { logger } from './logging';
 
-// This interface are details for a worker which is pending or running
+/**
+ * Interface for tracking worker status
+ * Contains details for a worker which is pending or running
+ */
 interface TrackedWorker {
+  /** Unique ARN for the ECS task */
   taskArn: string;
+  /** Task definition ARN for the ECS task */
+  taskDefinitionArn: string;
+  /** The cluster ARN where the task is running */
   clusterArn: string;
+  /** When the worker was started */
   startTime: Date;
+  /** Types of jobs this worker can handle */
   jobTypes: JobType[];
+  /** Current status of the worker */
   status: 'PENDING' | 'RUNNING' | 'STOPPED';
 }
 
+/**
+ * CapacityManager handles the automatic scaling of ECS tasks based on job queue demand.
+ * It tracks workers, polls for pending jobs, and adjusts the number of workers
+ * to efficiently process the jobs while respecting scaling constraints.
+ */
 export class CapacityManager {
   private config: Config;
   private ecsClient: ECSClient;
   private ec2Client: EC2Client;
+  // Tracks the last scaled time for a given task definition ARN
   private lastScaleTime: Record<string, number> = {};
   private client: AuthApiClient;
   private isRunning: boolean = false;
   private pollTimeout: NodeJS.Timeout | null = null;
 
-  // Add tracking data structures
+  // Tracking data for workers
   private trackedWorkers: TrackedWorker[] = [];
 
+  /**
+   * Creates a new CapacityManager
+   * @param config - Configuration for the capacity manager
+   * @param client - Authentication client for API requests
+   */
   constructor(config: Config, client: AuthApiClient) {
     this.config = ConfigSchema.parse(config);
     this.ecsClient = new ECSClient({ region: this.config.region });
     this.ec2Client = new EC2Client({ region: this.config.region });
     this.client = client;
+    logger.debug('CapacityManager initialized', { region: this.config.region });
   }
 
+  /**
+   * Polls the job queue and adjusts capacity as needed
+   * @private
+   */
   private async pollJobQueue() {
     if (!this.isRunning) return;
 
     const used = process.memoryUsage();
-    console.log('Memory usage:', {
+    logger.debug('Memory usage', {
       heapTotal: `${Math.round(used.heapTotal / 1024 / 1024)} MB`,
       heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)} MB`,
       rss: `${Math.round(used.rss / 1024 / 1024)} MB`,
     });
 
     try {
-      console.log('Poll started at:', new Date().toISOString());
+      logger.info('Poll started', { timestamp: new Date().toISOString() });
+      logger.debug('Current tracked workers status', {
+        count: this.trackedWorkers.length,
+      });
 
       // Update worker statuses
       await this.updateWorkerStatuses();
 
       // Get jobs with their IDs
+      logger.debug('Fetching pending jobs from API');
       const response = await this.client.get<PollJobsResponse>('/jobs/poll');
+      logger.debug('Received job poll response', {
+        jobCount: response.jobs.length,
+        jobTypes: response.jobs.map(j => j.type),
+      });
 
       await this.adjustCapacity({ pollResponse: response.jobs });
     } catch (error) {
-      console.error('Error polling job queue:', error);
+      logger.error('Error polling job queue', { error });
     } finally {
       // Only schedule next poll if still running
       if (this.isRunning) {
+        logger.debug('Scheduling next poll', {
+          ms: this.config.pollIntervalMs,
+        });
         this.pollTimeout = setTimeout(
           () => this.pollJobQueue(),
           this.config.pollIntervalMs,
@@ -72,12 +110,23 @@ export class CapacityManager {
     }
   }
 
+  /**
+   * Updates the status of all tracked workers by querying ECS
+   * @private
+   */
   private async updateWorkerStatuses() {
-    if (this.trackedWorkers.length === 0) return;
+    if (this.trackedWorkers.length === 0) {
+      logger.debug('No workers to update');
+      return;
+    }
 
     try {
       // Build set of distinct worker types from the tracked workers
       const clusterArns = new Set(this.trackedWorkers.map(w => w.clusterArn));
+      logger.debug('Updating worker statuses', {
+        workerCount: this.trackedWorkers.length,
+        clusterCount: clusterArns.size,
+      });
 
       // Create a Set to track which task ARNs were found in the API response
       const foundTaskArns = new Set<string>();
@@ -90,10 +139,19 @@ export class CapacityManager {
         // Which task ARNs to fetch
         const taskArns = relevantWorkers.map(w => w.taskArn);
 
+        logger.debug('Checking tasks in cluster', {
+          clusterArn,
+          taskCount: taskArns.length,
+        });
+
         // Split into chunks if there are many tasks (ECS API has limits)
         const chunkSize = 100;
         for (let i = 0; i < taskArns.length; i += chunkSize) {
           const chunk = taskArns.slice(i, i + chunkSize);
+          logger.debug('Processing task chunk', {
+            chunkSize: chunk.length,
+            startIndex: i,
+          });
 
           const command = new DescribeTasksCommand({
             cluster: clusterArn,
@@ -103,6 +161,11 @@ export class CapacityManager {
           const response = await this.ecsClient.send(command);
 
           if (response.tasks) {
+            logger.debug('Received task details', {
+              requestedCount: chunk.length,
+              receivedCount: response.tasks.length,
+            });
+
             // Add all found task ARNs to our tracking set
             response.tasks.forEach(task => {
               if (task.taskArn) {
@@ -116,10 +179,17 @@ export class CapacityManager {
           // Check if any tasks weren't found but were requested
           // AWS ECS API returns info in response.failures for tasks that weren't found
           if (response.failures && response.failures.length > 0) {
+            logger.warn('Some tasks were not found', {
+              failureCount: response.failures.length,
+            });
+
             response.failures.forEach(failure => {
               if (failure.arn && failure.reason === 'MISSING') {
-                console.log(
-                  `Task ${failure.arn} not found in ECS, removing from tracked workers`,
+                logger.info(
+                  'Task not found in ECS, removing from tracked workers',
+                  {
+                    taskArn: failure.arn,
+                  },
                 );
                 // We explicitly don't add this to foundTaskArns since it's missing
               }
@@ -137,22 +207,43 @@ export class CapacityManager {
 
       const removedCount = previousCount - this.trackedWorkers.length;
       if (removedCount > 0) {
-        console.log(
-          `Removed ${removedCount} workers that were not found in ECS`,
-        );
+        logger.info('Removed workers not found in ECS', {
+          count: removedCount,
+        });
       }
+
+      logger.debug('Worker status update complete', {
+        originalCount: previousCount,
+        currentCount: this.trackedWorkers.length,
+        removed: removedCount,
+      });
     } catch (error) {
-      console.error('Error updating worker statuses:', error);
+      logger.error('Error updating worker statuses', { error });
     }
   }
 
-  // Update worker statuses based on ECS task information
+  /**
+   * Updates worker statuses based on ECS task information
+   * @param tasks - Task information from ECS
+   * @private
+   */
   private updateWorkerStatusesFromTasks(tasks: Task[]) {
+    logger.debug('Updating worker statuses from tasks', {
+      taskCount: tasks.length,
+    });
+    let statusChanges = 0;
+
     for (const task of tasks) {
-      if (!task.taskArn) continue;
+      if (!task.taskArn) {
+        logger.warn('Task without ARN found in response');
+        continue;
+      }
 
       const worker = this.trackedWorkers.find(w => w.taskArn === task.taskArn);
-      if (!worker) continue;
+      if (!worker) {
+        logger.debug('Task not in tracked workers', { taskArn: task.taskArn });
+        continue;
+      }
 
       const lastStatus = task.lastStatus || '';
       let newStatus: 'PENDING' | 'RUNNING' | 'STOPPED';
@@ -174,110 +265,170 @@ export class CapacityManager {
         newStatus = 'STOPPED';
       } else {
         // For any unexpected status, log it but don't change worker status
-        console.warn(
-          `Worker ${task.taskArn} has unknown status: ${lastStatus}`,
-        );
+        logger.warn('Worker has unknown status', {
+          taskArn: task.taskArn,
+          status: lastStatus,
+        });
         continue;
       }
 
       // Only log if status changed
       if (worker.status !== newStatus) {
-        console.log(
-          `Worker ${task.taskArn} status changed: ${worker.status} -> ${newStatus}`,
-        );
+        logger.info('Worker status changed', {
+          taskArn: task.taskArn,
+          oldStatus: worker.status,
+          newStatus: newStatus,
+        });
         worker.status = newStatus;
+        statusChanges++;
       }
     }
 
+    // Count workers by status before cleanup
+    const workerStatusCounts = {
+      PENDING: this.trackedWorkers.filter(w => w.status === 'PENDING').length,
+      RUNNING: this.trackedWorkers.filter(w => w.status === 'RUNNING').length,
+      STOPPED: this.trackedWorkers.filter(w => w.status === 'STOPPED').length,
+    };
+
+    logger.debug('Worker status counts before cleanup', workerStatusCounts);
+
     // Remove stopped workers after updating
+    const beforeCleanup = this.trackedWorkers.length;
     this.trackedWorkers = this.trackedWorkers.filter(
       worker => worker.status !== 'STOPPED',
     );
+    const cleanupRemoved = beforeCleanup - this.trackedWorkers.length;
+
+    if (cleanupRemoved > 0) {
+      logger.info('Removed stopped workers from tracking', {
+        count: cleanupRemoved,
+      });
+    }
+
+    logger.debug('Worker status update summary', {
+      statusChanges,
+      stoppedWorkersRemoved: cleanupRemoved,
+      remainingWorkers: this.trackedWorkers.length,
+    });
   }
 
   /**
-   * For each job which is polling, determine how many workers we have running
-   * that can handle that type of job. Include pending tasks as part of the
-   * threshold. Observe cooldown period.
+   * Adjust capacity for each job type based on pending jobs
+   * @param pollResponse - Response from the job queue poll
+   * @private
    */
   private async adjustCapacity({
     pollResponse,
   }: {
     pollResponse: PollJobsResponse['jobs'];
   }): Promise<void> {
+    logger.debug('Adjusting capacity based on poll response', {
+      jobCount: pollResponse.length,
+    });
+
     // Count pending jobs by type
-    const pendingByType: Record<JobType, number> = Object.values(
-      JobType,
-    ).reduce<Record<JobType, number>>(
+    const pendingByDfnArn: Record<string, number> = pollResponse.reduce<
+      Record<string, number>
+    >(
       (current, acc) => {
-        current[acc] = 0;
+        const arn = this.config.jobTypes[acc.type]?.taskDefinitionArn;
+        if (!arn) {
+          logger.warn('Missing config definition for task type.', {
+            jobType: acc.type,
+          });
+          return current;
+        }
+        current[arn] = current[arn] ? current[arn] + 1 : 1;
         return current;
       },
-      {} as Record<JobType, number>,
+      {} as Record<string, number>,
     );
-    for (const job of pollResponse) {
-      // Increment count
-      pendingByType[job.type] += 1;
-    }
 
     // Determine how many workers are already tracked for each type of job
-    const workersByType: Record<JobType, number> = Object.values(
-      JobType,
-    ).reduce<Record<JobType, number>>(
+    const workersByDfnArn: Record<string, number> = this.trackedWorkers.reduce<
+      Record<string, number>
+    >(
       (current, acc) => {
-        current[acc] = 0;
+        const arn = acc.taskDefinitionArn;
+        current[arn] = current[arn] ? current[arn] + 1 : 1;
         return current;
       },
-      {} as Record<JobType, number>,
+      {} as Record<string, number>,
     );
-    for (const worker of this.trackedWorkers) {
-      // Count once for each type TODO consider if this has implications for
-      // scaling - de emphasising workers which handle multiple jobs
-      for (const type of worker.jobTypes) {
-        workersByType[type] += 1;
-      }
-    }
 
-    for (const jobType of Object.values(JobType)) {
-      const pending = pendingByType[jobType];
-      const workers = workersByType[jobType];
+    logger.debug('Job distribution', {
+      pendingByType: pendingByDfnArn,
+      workersByType: workersByDfnArn,
+    });
 
-      const config = this.config.jobTypes[jobType as JobType];
-      if (!config) {
-        console.warn(`No configuration found for job type: ${jobType}`);
+    for (const taskDefArn of Object.keys(pendingByDfnArn)) {
+      const taskConfig = Object.values(this.config.jobTypes).find(
+        c => c.taskDefinitionArn === taskDefArn,
+      );
+      if (!taskConfig) {
+        logger.warn(
+          'No configuration found for job with task definition arn needed',
+          { taskDefArn },
+        );
         continue;
       }
 
-      await this.adjustCapacityForType({
-        jobType,
+      const pending = pendingByDfnArn[taskDefArn];
+      const workers = workersByDfnArn[taskDefArn];
+
+      logger.debug('Considering capacity adjustment', {
+        taskDefinitionArn: taskDefArn,
+        pendingJobs: pending,
+        currentWorkers: workers,
+      });
+
+      await this.adjustCapacityForTask({
+        jobTypes: taskConfig.jobTypes,
         pending,
         workers,
-        config,
+        config: taskConfig,
       });
     }
   }
 
   /**
-   * Launches n jobs of the specified type/config
-   *
-   * Updates the worker tracking
+   * Launches n tasks of the specified type/config
+   * @param count - Number of tasks to launch
+   * @param jobType - Type of job the tasks will handle
+   * @param config - Configuration for the job type
+   * @private
    */
   private async launchTask({
     count = 1,
-    jobType,
     config,
   }: {
     count?: number;
-    jobType: JobType;
     config: JobTypeConfig;
   }) {
     try {
+      logger.info('Attempting to launch tasks', {
+        count,
+        arn: config.taskDefinitionArn,
+      });
       let done = 0;
+      let failures = 0;
+
       while (done < count) {
         const now = Date.now();
 
         // Get a random public subnet for this task
+        logger.debug('Getting random public subnet', {
+          vpcId: this.config.vpcId,
+        });
         const subnet = await this.getRandomPublicSubnet(this.config.vpcId);
+
+        logger.debug('Constructing RunTaskCommand', {
+          cluster: config.clusterArn,
+          taskDef: config.taskDefinitionArn,
+          subnet,
+        });
+
         const command = new RunTaskCommand({
           cluster: config.clusterArn,
           taskDefinition: config.taskDefinitionArn,
@@ -300,23 +451,37 @@ export class CapacityManager {
           result.tasks.length > 0 &&
           result.tasks[0].taskArn
         ) {
-          this.lastScaleTime[jobType] = now;
+          this.lastScaleTime[config.taskDefinitionArn] = now;
           this.trackedWorkers.push({
             clusterArn: config.clusterArn,
             taskArn: result.tasks[0].taskArn,
             startTime: new Date(),
-            jobTypes: this.config.jobTypes[jobType]?.jobTypes ?? [jobType],
+            jobTypes: config.jobTypes,
+            taskDefinitionArn: config.taskDefinitionArn,
             status: 'PENDING',
           });
 
-          console.log(
-            `Started new task ${result.tasks[0].taskArn} for job type: ${jobType}`,
-          );
+          logger.info('Started new task', {
+            taskArn: result.tasks[0].taskArn,
+          });
+          done += 1;
+        } else {
+          failures += 1;
+          logger.error('Failed to launch task', {
+            result,
+          });
         }
-        done += 1;
       }
+
+      logger.debug('Task launch summary', {
+        requested: count,
+        launched: done,
+        failures,
+      });
     } catch (e) {
-      console.error('Failed to launch task(s). Exception: ' + e);
+      logger.error('Failed to launch task(s)', {
+        error: e,
+      });
     }
   }
 
@@ -335,6 +500,7 @@ export class CapacityManager {
    * @param baseJobCount - Reference job count that maps to roughly 1×sensitivity workers
    *                      (helps calibrate the scale for your specific workload)
    * @returns The target number of workers as an integer
+   * @private
    */
   private computeOptimalWorkers({
     pendingJobs,
@@ -351,8 +517,10 @@ export class CapacityManager {
   }): number {
     // Handle edge cases
     if (pendingJobs <= 0) {
+      logger.debug('No pending jobs, using minWorkers', { minWorkers });
       return minWorkers;
     }
+
     // Compute workers using logarithmic scaling
     // The formula: sensitivity * log(pendingJobs/baseJobCount + 1) + minWorkers
     //
@@ -364,33 +532,80 @@ export class CapacityManager {
       sensitivity * Math.log(pendingJobs / baseJobCount + 1) + minWorkers;
 
     // Round to nearest integer and enforce bounds
-    return Math.min(
+    let result = Math.min(
       Math.max(Math.round(computedWorkers), minWorkers),
       maxWorkers,
     );
+
+    // You should always deploy at least one worker if there is at least one job
+    if (pendingJobs > 0 && result < 1) {
+      logger.debug(
+        'Optimal workers found < 1 when there was at least one pending job...forcing result to 1',
+        {
+          pendingJobs,
+          minWorkers,
+        },
+      );
+      result = 1;
+    }
+
+    logger.debug('Computed optimal workers', {
+      pendingJobs,
+      sensitivity,
+      minWorkers,
+      maxWorkers,
+      baseJobCount,
+      rawComputed: computedWorkers,
+      finalResult: result,
+    });
+
+    return result;
   }
 
-  private async adjustCapacityForType({
-    jobType,
+  /**
+   * Adjust capacity for a specific job type
+   * @param jobType - The job type to adjust capacity for
+   * @param pending - Number of pending jobs of this type
+   * @param workers - Current worker count for this type
+   * @param config - Configuration for this job type
+   * @private
+   */
+  private async adjustCapacityForTask({
+    jobTypes,
     pending,
     workers,
     config,
   }: {
-    jobType: JobType;
+    jobTypes: JobType[];
     pending: number;
     workers: number;
     config: JobTypeConfig;
   }) {
     const now = Date.now();
-    const lastScale = this.lastScaleTime[jobType] || 0;
+    const lastScale = this.lastScaleTime[config.taskDefinitionArn] || 0;
+    const cooldownMs = config.scaling.cooldownSeconds * 1000;
+    const timeInCooldown = now - lastScale;
+    const inCooldown = timeInCooldown < cooldownMs;
 
     // Check cooldown
-    if (now - lastScale < config.scaling.cooldownSeconds * 1000) {
-      console.log(`Still in cooldown period for ${jobType}`);
+    if (inCooldown) {
+      logger.debug('Still in cooldown period', {
+        jobTypes,
+        elapsed: timeInCooldown,
+        cooldownMs,
+        remaining: cooldownMs - timeInCooldown,
+      });
       return;
     }
 
     // Determine the ideal number of workers
+    logger.debug('Calculating target capacity', {
+      jobTypes,
+      pending,
+      currentWorkers: workers,
+      scalingConfig: config.scaling,
+    });
+
     const idealTarget = this.computeOptimalWorkers({
       pendingJobs: pending,
       sensitivity: config.scaling.sensitivity,
@@ -398,34 +613,65 @@ export class CapacityManager {
       maxWorkers: config.scaling.max,
       baseJobCount: config.scaling.factor,
     });
+
     const diff = idealTarget - workers;
+
     if (diff > 0) {
-      console.info(`Launching ${diff} tasks of type: ${jobType}.`);
-      this.launchTask({ count: diff, jobType, config });
+      logger.info('Launching additional tasks', {
+        count: diff,
+        jobTypes,
+        currentWorkers: workers,
+        targetWorkers: idealTarget,
+        pendingJobs: pending,
+      });
+      this.launchTask({ count: diff, config });
+    } else if (diff < 0) {
+      logger.debug('Capacity reduction not implemented', {
+        jobTypes,
+        currentWorkers: workers,
+        targetWorkers: idealTarget,
+        excess: -diff,
+      });
+      // Note: No implementation for scaling down - tasks will terminate themselves
+    } else {
+      logger.debug('No capacity adjustment needed', {
+        jobTypes,
+        currentWorkers: workers,
+        targetWorkers: idealTarget,
+      });
     }
   }
 
+  /**
+   * Starts the capacity manager
+   */
   public start() {
-    if (this.isRunning) return;
+    if (this.isRunning) {
+      logger.info('Capacity manager already running');
+      return;
+    }
 
-    console.log('Starting capacity manager...');
+    logger.info('Starting capacity manager...');
     this.isRunning = true;
     this.pollJobQueue();
 
     // Add error handlers for uncaught errors
     process.on('uncaughtException', error => {
-      console.error('Uncaught exception:', error);
+      logger.error('Uncaught exception', { error });
       this.stop();
     });
 
     process.on('unhandledRejection', error => {
-      console.error('Unhandled rejection:', error);
+      logger.error('Unhandled rejection', { error });
       this.stop();
     });
   }
 
+  /**
+   * Stops the capacity manager
+   */
   public stop() {
-    console.log('Stopping capacity manager...');
+    logger.info('Stopping capacity manager...');
     this.isRunning = false;
     if (this.pollTimeout) {
       clearTimeout(this.pollTimeout);
@@ -433,8 +679,15 @@ export class CapacityManager {
     }
   }
 
+  /**
+   * Gets a random public subnet from the VPC
+   * @param vpcId - The VPC ID to get subnets from
+   * @returns The subnet ID
+   * @private
+   */
   private async getRandomPublicSubnet(vpcId: string): Promise<string> {
     try {
+      logger.debug('Fetching public subnets', { vpcId });
       const command = new DescribeSubnetsCommand({
         Filters: [
           {
@@ -452,6 +705,7 @@ export class CapacityManager {
       const publicSubnets = response.Subnets || [];
 
       if (publicSubnets.length === 0) {
+        logger.error('No public subnets found', { vpcId });
         throw new Error(`No public subnets found in VPC ${vpcId}`);
       }
 
@@ -459,13 +713,45 @@ export class CapacityManager {
       const randomIndex = Math.floor(Math.random() * publicSubnets.length);
       const selectedSubnet = publicSubnets[randomIndex];
 
-      console.log(
-        `Selected subnet ${selectedSubnet.SubnetId} in AZ ${selectedSubnet.AvailabilityZone}`,
-      );
+      logger.info('Selected subnet', {
+        subnetId: selectedSubnet.SubnetId,
+        availabilityZone: selectedSubnet.AvailabilityZone,
+      });
       return selectedSubnet.SubnetId!;
     } catch (error) {
-      console.error('Error getting public subnets:', error);
+      logger.error('Error getting public subnets', { error });
       throw error;
     }
+  }
+
+  /**
+   * Returns information about the current worker distribution
+   * @returns Summary of current workers
+   */
+  public getWorkerStats() {
+    const byStatus = {
+      PENDING: this.trackedWorkers.filter(w => w.status === 'PENDING').length,
+      RUNNING: this.trackedWorkers.filter(w => w.status === 'RUNNING').length,
+    };
+
+    const byJobType = Object.values(JobType).reduce<Record<string, number>>(
+      (acc, jobType) => {
+        acc[jobType] = 0;
+        return acc;
+      },
+      {},
+    );
+
+    this.trackedWorkers.forEach(worker => {
+      worker.jobTypes.forEach(jobType => {
+        byJobType[jobType]++;
+      });
+    });
+
+    return {
+      totalWorkers: this.trackedWorkers.length,
+      byStatus,
+      byJobType,
+    };
   }
 }

@@ -1,7 +1,16 @@
 import { JobType } from '@prisma/client';
 import { z } from 'zod';
+import { logger } from './logging';
 
-// Helper function to create a number validator that also accepts string inputs
+/**
+ * Helper function to create a number validator that also accepts string inputs
+ * Ensures values meet minimum requirements and handles type conversion
+ *
+ * @param min - Minimum allowed value (null for no minimum)
+ * @param errorMessage - Error message for invalid numbers
+ * @param minErrorMessage - Error message for values below minimum
+ * @returns A Zod validator that accepts both numbers and strings
+ */
 const createNumberValidator = (
   min: number | null = null,
   errorMessage: string = 'Value must be a valid number',
@@ -30,6 +39,10 @@ const createNumberValidator = (
   ]);
 };
 
+/**
+ * Schema for scaling configuration
+ * Defines how the capacity manager should scale resources
+ */
 export const ScalingConfiguration = z.object({
   min: createNumberValidator(
     0,
@@ -58,8 +71,11 @@ export const ScalingConfiguration = z.object({
   ),
 });
 
-// Configuration schema for job types and their corresponding ECS resources
-export const JobTypeConfigSchema = z.object({
+/**
+ * Configuration schema for job types and their corresponding ECS resources
+ * Defines the AWS resources and scaling parameters for each job type
+ */
+export const RawJobTypeConfigSchema = z.object({
   taskDefinitionArn: z.string().min(1, 'Task Definition ARN is required'),
   clusterArn: z.string().min(1, 'Cluster ARN is required'),
   scaling: ScalingConfiguration,
@@ -67,11 +83,18 @@ export const JobTypeConfigSchema = z.object({
   securityGroup: z.string().min(1, 'Security group ARN is required'),
 });
 
-export type JobTypeConfig = z.infer<typeof JobTypeConfigSchema>;
+export type RawJobTypeConfig = z.infer<typeof RawJobTypeConfigSchema>;
 
-// Base configuration schema (not job-type specific)
+/**
+ * Base configuration schema for environment variables
+ * Validates core application settings from environment
+ */
 export const BaseEnvConfigSchema = z.object({
-  POLL_INTERVAL_MS: z.string().transform(val => parseInt(val)),
+  POLL_INTERVAL_MS: createNumberValidator(
+    500,
+    'Poll interval expects valid number',
+    'Minimum poll interval is 500(ms)',
+  ),
   API_ENDPOINT: z.string().url('API endpoint must be a valid URL'),
   AWS_REGION: z.string().min(1, 'AWS region is required'),
   API_USERNAME: z.string().min(1, 'API username is required'),
@@ -79,15 +102,23 @@ export const BaseEnvConfigSchema = z.object({
   VPC_ID: z.string().min(1, 'VPC ID is required'),
 });
 
-// Final configuration schema structure
+export const JobTypeConfigSchema = RawJobTypeConfigSchema.extend({
+  jobTypes: z.array(z.nativeEnum(JobType)),
+});
+export type JobTypeConfig = z.infer<typeof JobTypeConfigSchema>;
+/**
+ * Final configuration schema structure
+ * Combines all configuration elements into a complete application config
+ */
 export const ConfigSchema = z.object({
-  pollIntervalMs: z.number().min(1000, 'Poll interval must be at least 1000ms'),
+  pollIntervalMs: createNumberValidator(
+    500,
+    'Poll interval expects valid number',
+    'Minimum poll interval is 500(ms)',
+  ),
   apiEndpoint: z.string().url('API endpoint must be a valid URL'),
   region: z.string().min(1, 'AWS region is required'),
-  jobTypes: z.record(
-    z.nativeEnum(JobType),
-    JobTypeConfigSchema.extend({ jobTypes: z.array(z.nativeEnum(JobType)) }),
-  ),
+  jobTypes: z.record(z.nativeEnum(JobType), JobTypeConfigSchema),
   auth: z.object({
     email: z.string().min(1, 'Email is required'),
     password: z.string().min(1, 'Password is required'),
@@ -99,15 +130,18 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 /**
  * Builds job type configuration from environment variables
+ * Extracts and validates settings for a specific job type
  *
- * @param env Validated environment variables
- * @param jobType The job type to build configuration for
+ * @param env - Validated environment variables
+ * @param jobType - The job type to build configuration for
  * @returns Configuration for the specified job type
  */
 function buildJobTypeConfig(
   env: Record<string, string | number>,
   jobType: string,
-): JobTypeConfig {
+): RawJobTypeConfig {
+  logger.debug(`Building config for job type: ${jobType}`);
+
   const optimisticParse = {
     taskDefinitionArn: env[`${jobType}_TASK_DEF`] as string,
     clusterArn: env[`${jobType}_CLUSTER`] as string,
@@ -119,12 +153,16 @@ function buildJobTypeConfig(
       factor: env[`${jobType}_FACTOR`] as number,
     },
     securityGroup: env[`${jobType}_SECURITY_GROUP`] as string,
-  } satisfies JobTypeConfig;
+  } satisfies RawJobTypeConfig;
+
   try {
-    return JobTypeConfigSchema.parse(optimisticParse);
+    const validatedConfig = RawJobTypeConfigSchema.parse(optimisticParse);
+    logger.debug(`Validated config for job type: ${jobType}`);
+    return validatedConfig;
   } catch (e) {
-    console.error(
-      `Job type ${jobType} did not have valid environment variables. Error: ${e}.`,
+    logger.error(
+      `Job type ${jobType} did not have valid environment variables`,
+      { error: e },
     );
     throw e;
   }
@@ -138,18 +176,21 @@ function buildJobTypeConfig(
  * @throws Error if configuration validation fails
  */
 export function loadConfig(): Config {
+  logger.info('Loading application configuration');
+
   try {
     // Force types here as we zod process everything!
     const env = process.env as Record<string, string | number>;
     // Initialize job types configuration object
     const jobTypesConfig: Record<
       string,
-      JobTypeConfig & { jobTypes?: JobType[] }
+      RawJobTypeConfig & { jobTypes?: JobType[] }
     > = {};
 
     // Build configuration for each job type
     Object.values(JobType).forEach(jobType => {
       const typeString = jobType.toString();
+      logger.debug(`Processing job type: ${typeString}`);
       jobTypesConfig[typeString] = buildJobTypeConfig(
         env as Record<string, number | string>,
         typeString,
@@ -157,6 +198,7 @@ export function loadConfig(): Config {
     });
 
     // Group the job types by task ARN
+    logger.debug('Grouping job types by task ARN');
     const arnToTypes: Map<string, JobType[]> = new Map();
     for (const [jobType, config] of Object.entries(jobTypesConfig)) {
       arnToTypes.set(
@@ -186,15 +228,22 @@ export function loadConfig(): Config {
     };
 
     // Validate the entire config object
-    return ConfigSchema.parse(config);
+    logger.debug('Validating complete configuration');
+    const validatedConfig = ConfigSchema.parse(config);
+    logger.info('Configuration successfully loaded and validated');
+    return validatedConfig;
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Format Zod validation errors for better readability
       const formattedErrors = error.errors
         .map(err => `${err.path.join('.')}: ${err.message}`)
         .join('\n');
+      logger.error('Configuration validation failed', {
+        errors: formattedErrors,
+      });
       throw new Error(`Configuration validation failed:\n${formattedErrors}`);
     }
+    logger.error('Failed to load configuration', { error });
     throw new Error(`Failed to load configuration: ${error}`);
   }
 }

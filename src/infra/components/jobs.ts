@@ -301,6 +301,8 @@ export class JobSystem extends Construct {
         AWS_REGION: Stack.of(this).region,
         // Which vpc to deploy into
         VPC_ID: props.vpc.vpcId,
+        // Log level for manager
+        LOG_LEVEL: 'debug',
       },
       // pass in the manager creds
       secrets: {
