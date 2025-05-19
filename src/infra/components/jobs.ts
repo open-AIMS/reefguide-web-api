@@ -192,11 +192,11 @@ export class JobSystem extends Construct {
         // pass in the worker creds
         // TODO do we want separate users for each worker?
         secrets: {
-          USERNAME: ecs.Secret.fromSecretsManager(
+          WORKER_USERNAME: ecs.Secret.fromSecretsManager(
             props.workerCreds,
             'username',
           ),
-          PASSWORD: ecs.Secret.fromSecretsManager(
+          WORKER_PASSWORD: ecs.Secret.fromSecretsManager(
             props.workerCreds,
             'password',
           ),
