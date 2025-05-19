@@ -374,8 +374,8 @@ export class CapacityManager {
         continue;
       }
 
-      const pending = pendingByDfnArn[taskDefArn];
-      const workers = workersByDfnArn[taskDefArn];
+      const pending : number = pendingByDfnArn[taskDefArn] ?? 0;
+      const workers : number = workersByDfnArn[taskDefArn] ?? 0;
 
       logger.debug('Considering capacity adjustment', {
         taskDefinitionArn: taskDefArn,
