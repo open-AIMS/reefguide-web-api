@@ -25,8 +25,9 @@ export interface JobTypeConfig {
   // Scaling configuration
   desiredMinCapacity: number;
   desiredMaxCapacity: number;
-  scaleUpThreshold: number;
   cooldownSeconds: number;
+  scalingSensitivity: number;
+  scalingFactor: number;
   serverPort: number;
   command: string[];
 
@@ -374,8 +375,10 @@ export class JobSystem extends Construct {
           workerConfig.desiredMinCapacity.toString();
         taskDefEnvVars[`${jobType}_MAX_CAPACITY`] =
           workerConfig.desiredMaxCapacity.toString();
-        taskDefEnvVars[`${jobType}_SCALE_THRESHOLD`] =
-          workerConfig.scaleUpThreshold.toString();
+        taskDefEnvVars[`${jobType}_SENSITIVITY`] =
+          workerConfig.scalingSensitivity.toString();
+        taskDefEnvVars[`${jobType}_FACTOR`] =
+          workerConfig.scalingFactor.toString();
         taskDefEnvVars[`${jobType}_COOLDOWN`] =
           workerConfig.cooldownSeconds.toString();
         taskDefEnvVars[`${jobType}_SECURITY_GROUP`] = workerSg.securityGroupId;

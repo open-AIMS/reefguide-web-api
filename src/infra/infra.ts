@@ -189,7 +189,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
           command: ['using ReefGuideAPI; ReefGuideAPI.start_worker()'],
           desiredMinCapacity: 0,
           desiredMaxCapacity: 5,
-          scaleUpThreshold: 1,
+          scalingFactor: 20,
+          scalingSensitivity: 5.0,
           cooldownSeconds: 60,
 
           // This specifies where the config file path can be found for the
