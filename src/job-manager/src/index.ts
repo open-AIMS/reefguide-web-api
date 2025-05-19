@@ -77,14 +77,14 @@ process.on('SIGINT', () => {
 });
 
 // Additional error handling for uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   logger.error('Uncaught exception, shutting down:', { error });
   manager.stop();
   process.exit(1);
 });
 
 // Additional error handling for unhandled promise rejections
-process.on('unhandledRejection', (reason) => {
+process.on('unhandledRejection', reason => {
   logger.error('Unhandled rejection, shutting down:', { reason });
   manager.stop();
   process.exit(1);

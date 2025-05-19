@@ -170,10 +170,9 @@ export class AuthApiClient {
       );
 
       if (response.status !== 200) {
-        logger.warn(
-          'Non 200 response from refresh token endpoint',
-          { status: response.status }
-        );
+        logger.warn('Non 200 response from refresh token endpoint', {
+          status: response.status,
+        });
         throw new Error('Non 200 response from refresh token.');
       }
 
@@ -183,7 +182,9 @@ export class AuthApiClient {
       };
       logger.debug('Token refreshed successfully');
     } catch (error) {
-      logger.error('Error during token refresh, falling back to login', { error });
+      logger.error('Error during token refresh, falling back to login', {
+        error,
+      });
       // If refresh fails, try logging in again
       this.tokens = null;
       // awaiting login
