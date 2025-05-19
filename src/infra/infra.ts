@@ -164,9 +164,9 @@ export class ReefguideWebApiStack extends cdk.Stack {
       apiEndpoint: webAPI.endpoint,
       capacityManager: {
         // Measly! But seems to work well
-        cpu: 256,
-        memoryLimitMiB: 512,
-        pollIntervalMs: 5000,
+        cpu: 512,
+        memoryLimitMiB: 1024,
+        pollIntervalMs: 3000,
       },
       workers: [
         {
