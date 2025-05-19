@@ -194,7 +194,10 @@ export class ReefguideWebApiStack extends cdk.Stack {
 
           // This specifies where the config file path can be found for the
           // worker task
-          env: { CONFIG_PATH: '/data/reefguide/config.toml' },
+          env: {
+            CONFIG_PATH: '/data/reefguide/config.toml',
+            JULIA_DEBUG: 'ReefGuideAPI',
+          },
 
           // Mount up the reefguide API shared storage
           efsMounts: {
