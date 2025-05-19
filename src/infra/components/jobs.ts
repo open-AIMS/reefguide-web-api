@@ -302,7 +302,7 @@ export class JobSystem extends Construct {
         // Which vpc to deploy into
         VPC_ID: props.vpc.vpcId,
         // Log level for manager
-        LOG_LEVEL: 'debug',
+        LOG_LEVEL: 'info',
       },
       // pass in the manager creds
       secrets: {
