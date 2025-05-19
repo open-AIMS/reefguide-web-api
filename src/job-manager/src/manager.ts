@@ -314,7 +314,7 @@ export class CapacityManager {
   }
 
   /**
-   * Adjust capacity for each job type based on pending jobs
+   * Adjust capacity for each task definition based on pending jobs
    * @param pollResponse - Response from the job queue poll
    * @private
    */
@@ -327,7 +327,7 @@ export class CapacityManager {
       jobCount: pollResponse.length,
     });
 
-    // Count pending jobs by type
+    // Count pending jobs by task definition
     const pendingByDfnArn: Record<string, number> = pollResponse.reduce<
       Record<string, number>
     >(
