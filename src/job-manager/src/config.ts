@@ -1,20 +1,63 @@
 import { JobType } from '@prisma/client';
 import { z } from 'zod';
 
+// Helper function to create a number validator that also accepts string inputs
+const createNumberValidator = (
+  min: number | null = null,
+  errorMessage: string = 'Value must be a valid number',
+  minErrorMessage: string = `Value must be at least ${min}`,
+) => {
+  return z.union([
+    min !== null ? z.number().min(min, minErrorMessage) : z.number(),
+    z.string().transform((val, ctx) => {
+      const parsed = Number(val);
+      if (isNaN(parsed)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: errorMessage,
+        });
+        return z.NEVER;
+      }
+      if (min !== null && parsed < min) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: minErrorMessage,
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    }),
+  ]);
+};
+
 export const ScalingConfiguration = z.object({
-  min: z.number().min(0, 'Minimum capacity must be non-negative'),
-  max: z.number().min(0, 'Maximum capacity must be non-negative'),
-  sensitivity: z
-    .number()
-    .min(1, 'Logarithmic sensitivity - see scaling algorithm'),
-  factor: z
-    .number()
-    .min(
-      1,
-      'Division factor for jobs - this allows you to consider different job count scales.',
-    ),
-  cooldownSeconds: z.number().min(0, 'Cooldown seconds must be non-negative'),
+  min: createNumberValidator(
+    0,
+    'Minimum capacity must be a valid number',
+    'Minimum capacity must be non-negative',
+  ),
+  max: createNumberValidator(
+    0,
+    'Maximum capacity must be a valid number',
+    'Maximum capacity must be non-negative',
+  ),
+  sensitivity: createNumberValidator(
+    0,
+    'Sensitivity must be a valid number',
+    'Logarithmic sensitivity must be non-negative',
+  ),
+  factor: createNumberValidator(
+    1,
+    'Factor must be a valid number',
+    'Division factor for jobs - this allows you to consider different job count scales. Must be > 1.',
+  ),
+  cooldownSeconds: createNumberValidator(
+    0,
+    'Cooldown seconds must be a valid number',
+    'Cooldown seconds must be non-negative',
+  ),
 });
+
 // Configuration schema for job types and their corresponding ECS resources
 export const JobTypeConfigSchema = z.object({
   taskDefinitionArn: z.string().min(1, 'Task Definition ARN is required'),
