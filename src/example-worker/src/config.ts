@@ -22,8 +22,8 @@ const EnvVarsSchema = z.object({
     .default('3000')
     .transform(val => parseInt(val))
     .pipe(z.number().positive()),
-  USERNAME: z.string().min(1, 'Username for the web API is required'),
-  PASSWORD: z.string().min(1, 'Password for the web API is required'),
+  WORKER_USERNAME: z.string().min(1, 'Username for the web API is required'),
+  WORKER_PASSWORD: z.string().min(1, 'Password for the web API is required'),
 });
 
 // Main configuration schema
@@ -63,8 +63,8 @@ export function loadConfig(): Config {
     pollIntervalMs: env.POLL_INTERVAL_MS,
     maxConcurrentJobs: env.MAX_CONCURRENT_JOBS,
     port: env.PORT,
-    username: env.USERNAME,
-    password: env.PASSWORD,
+    username: env.WORKER_USERNAME,
+    password: env.WORKER_PASSWORD,
   };
 
   // Validate the complete configuration
