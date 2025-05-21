@@ -89,8 +89,7 @@ Authorization: Bearer {{authToken}}
     "type": "REGIONAL_ASSESSMENT",
     "inputPayload": {
         "region": "Mackay-Capricorn",
-        "reef_type": "slopes",
-        "depth_min" : -5.11111
+        "reef_type": "slopes"
     }
 }
 
