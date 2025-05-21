@@ -35,17 +35,37 @@ type JobExpiryMap = {
 };
 
 const sharedCriteriaSchema = z.object({
-  // High level config
+  // High level config - common to all current scenarios
   region: z.string().describe('Region for assessment'),
   reef_type: z.string().describe('The type of reef, slopes or flats'),
-  // Criteria
-  depth_min: z.number().describe('The depth range (min)'),
-  depth_max: z.number().describe('The depth range (max)'),
-  slope_min: z.number().describe('The slope range (min)'),
-  slope_max: z.number().describe('The slope range (max)'),
-  rugosity_min: z.number().describe('The rugosity range (min)'),
-  rugosity_max: z.number().describe('The rugosity range (max)'),
-  threshold: z.number().describe('Suitability threshold integer (min)'),
+
+  // Criteria - all optional to match the Union{Float64,Nothing} in worker
+  depth_min: z.number().optional().describe('The depth range (min)'),
+  depth_max: z.number().optional().describe('The depth range (max)'),
+  slope_min: z.number().optional().describe('The slope range (min)'),
+  slope_max: z.number().optional().describe('The slope range (max)'),
+  rugosity_min: z.number().optional().describe('The rugosity range (min)'),
+  rugosity_max: z.number().optional().describe('The rugosity range (max)'),
+  waves_period_min: z
+    .number()
+    .optional()
+    .describe('The wave period range (min)'),
+  waves_period_max: z
+    .number()
+    .optional()
+    .describe('The wave period range (max)'),
+  waves_height_min: z
+    .number()
+    .optional()
+    .describe('The wave height range (min)'),
+  waves_height_max: z
+    .number()
+    .optional()
+    .describe('The wave height range (max)'),
+  threshold: z
+    .number()
+    .optional()
+    .describe('Suitability threshold integer (min)'),
 });
 
 /**

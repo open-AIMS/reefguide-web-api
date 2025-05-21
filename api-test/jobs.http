@@ -50,11 +50,51 @@ Authorization: Bearer {{authToken}}
 {
     "type": "TEST",
     "inputPayload": {
-        "id" : 1
+        "id" : 1111111
     }
 }
 
-### Create a new suitability assessment job
+### Create a new regional assessment job (with full params)
+# @name createRegionalAssessmentJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "REGIONAL_ASSESSMENT",
+    "inputPayload": {
+        "region": "Mackay-Capricorn",
+        "reef_type": "slopes",
+        "depth_min": -10.1,
+        "depth_max": -2.1,
+        "slope_min": 0.1,
+        "slope_max": 30.0,
+        "rugosity_min": 0.0,
+        "rugosity_max": 6.0,
+        "waves_period_min": 1.94303,
+        "waves_period_max": 9.32689,
+        "waves_height_min": 0.237052,
+        "waves_height_max": 2.53194,
+        "threshold": 95
+    }
+}
+
+### Create a new regional assessment job (with minimal params)
+# @name createRegionalAssessmentJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "REGIONAL_ASSESSMENT",
+    "inputPayload": {
+        "region": "Mackay-Capricorn",
+        "reef_type": "slopes",
+        "depth_min" : -5.11111
+    }
+}
+
+### Create a new suitability assessment job (with full params)
 # @name createSuitabilityJob
 POST {{baseUrl}}/jobs
 Content-Type: {{contentType}}
@@ -63,19 +103,40 @@ Authorization: Bearer {{authToken}}
 {
     "type": "SUITABILITY_ASSESSMENT",
     "inputPayload": {
-        "region": "Cairns-Cooktown",
+        "region": "Mackay-Capricorn",
         "reef_type": "slopes",
-        "depth_min": -7.0,
-        "depth_max": -3.9,
-        "slope_min": 0.2,
-        "slope_max": 40.0,
+        "depth_min": -10.1,
+        "depth_max": -2.1,
+        "slope_min": 0.1,
+        "slope_max": 30.0,
         "rugosity_min": 0.0,
         "rugosity_max": 6.0,
-        "x_dist" : 450,
-        "y_dist" : 20,
+        "waves_period_min": 1.94303,
+        "waves_period_max": 9.32689,
+        "waves_height_min": 0.237052,
+        "waves_height_max": 2.53194,
+        "x_dist": 451,
+        "y_dist": 27,
         "threshold": 95
     }
 }
+
+### Create a new suitability assessment job (with minimal params)
+# @name createSuitabilityJob
+POST {{baseUrl}}/jobs
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+    "type": "SUITABILITY_ASSESSMENT",
+    "inputPayload": {
+        "region": "Mackay-Capricorn",
+        "reef_type": "slopes",
+        "x_dist": 451,
+        "y_dist": 27
+    }
+}
+
 
 ### Store the job IDs for further operations
 @jobId = {{createJob.response.body.jobId}}
