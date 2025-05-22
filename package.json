@@ -23,8 +23,8 @@
     "format:write": "prettier --write \"src/**/*.{ts,js,json,html,scss,md}\" \"!**/node_modules/**\" \"!**/dist/**\"",
     "dev-manager": "env-cmd -f src/job-manager/.env ts-node src/job-manager/src/index.ts",
     "dev-worker": "env-cmd -f src/example-worker/.env ts-node src/example-worker/src/index.ts",
-    "start-manager": "ts-node src/job-manager/src/index.ts",
-    "start-worker": "ts-node src/example-worker/src/index.ts"
+    "start-manager": "ts-node -T src/job-manager/src/index.ts",
+    "start-worker": "ts-node -T src/example-worker/src/index.ts"
   },
   "keywords": [],
   "author": "AIMS",
@@ -54,6 +54,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "source-map-support": "^0.5.21",
+    "winston": "^3.17.0",
     "zod": "^3.23.8",
     "zod-express-middleware": "^1.4.0"
   },
