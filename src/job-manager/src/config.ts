@@ -191,10 +191,7 @@ export function loadConfig(): Config {
     Object.values(JobType).forEach(jobType => {
       const typeString = jobType.toString();
       logger.debug(`Processing job type: ${typeString}`);
-      jobTypesConfig[typeString] = buildJobTypeConfig(
-        env,
-        typeString,
-      );
+      jobTypesConfig[typeString] = buildJobTypeConfig(env, typeString);
     });
 
     // Group the job types by task ARN
