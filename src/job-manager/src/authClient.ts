@@ -173,7 +173,9 @@ export class AuthApiClient {
         logger.warn('Non 200 response from refresh token endpoint', {
           status: response.status,
         });
-        throw new Error('Non 200 response from refresh token.');
+        throw new Error(
+          `Non 200 response from refresh token. Code: ${response.status}.`,
+        );
       }
 
       this.tokens = {

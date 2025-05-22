@@ -192,7 +192,7 @@ export function loadConfig(): Config {
       const typeString = jobType.toString();
       logger.debug(`Processing job type: ${typeString}`);
       jobTypesConfig[typeString] = buildJobTypeConfig(
-        env as Record<string, number | string>,
+        env,
         typeString,
       );
     });
