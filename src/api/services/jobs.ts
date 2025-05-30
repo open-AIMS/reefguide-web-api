@@ -40,8 +40,10 @@ const sharedCriteriaSchema = z.object({
   reef_type: z.string().describe('The type of reef, slopes or flats'),
 
   // Criteria - all optional to match the Union{Float64,Nothing} in worker
-  depth_min: z.number().optional().describe('The depth range (min)'),
-  depth_max: z.number().optional().describe('The depth range (max)'),
+  depth_min: z.number().optional()
+    .describe('The depth minimum (the deeper more negative value)'),
+  depth_max: z.number().optional()
+    .describe('The depth maximum (the shallower less negative value)'),
   slope_min: z.number().optional().describe('The slope range (min)'),
   slope_max: z.number().optional().describe('The slope range (max)'),
   rugosity_min: z.number().optional().describe('The rugosity range (min)'),
