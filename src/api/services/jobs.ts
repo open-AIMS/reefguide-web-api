@@ -169,7 +169,8 @@ export class JobService {
     try {
       return schema.parse(payload);
     } catch (e) {
-      throw new BadRequestException(`Invalid payload for job type ${jobType}`);
+      const cause = e instanceof Error ? e : undefined;
+      throw new BadRequestException(`Invalid payload for job type ${jobType}`, cause);
     }
   }
 
