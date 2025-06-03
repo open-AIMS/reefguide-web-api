@@ -62,10 +62,6 @@ const sharedCriteriaSchema = z.object({
     .number()
     .optional()
     .describe('The wave height range (max)'),
-  threshold: z
-    .number()
-    .optional()
-    .describe('Suitability threshold integer (min)'),
 });
 
 /**
@@ -89,6 +85,10 @@ export const jobTypeSchemas: JobSchemaMap = {
       .extend({
         x_dist: z.number().describe('Length (m) of the target polygon'),
         y_dist: z.number().describe('Width (m) of the target polygon'),
+        threshold: z
+          .number()
+          .optional()
+          .describe('Suitability threshold integer (min)'),
       })
       .strict(),
     result: z
