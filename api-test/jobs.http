@@ -74,8 +74,7 @@ Authorization: Bearer {{authToken}}
         "waves_period_min": 1.94303,
         "waves_period_max": 9.32689,
         "waves_height_min": 0.237052,
-        "waves_height_max": 2.53194,
-        "threshold": 95
+        "waves_height_max": 2.53194
     }
 }
 
