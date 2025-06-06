@@ -14,8 +14,11 @@ export interface DbProps {
 
 export class Db extends Construct {
   public readonly credsArn: string;
+
   public readonly arn: string;
+
   public readonly endpoint: rds.Endpoint;
+
   public readonly databaseId: string;
 
   constructor(scope: Construct, id: string, props: DbProps) {

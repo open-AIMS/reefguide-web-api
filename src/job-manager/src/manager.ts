@@ -38,12 +38,18 @@ interface TrackedWorker {
  */
 export class CapacityManager {
   private config: Config;
+
   private ecsClient: ECSClient;
+
   private ec2Client: EC2Client;
+
   // Tracks the last scaled time for a given task definition ARN
   private lastScaleTime: Record<string, number> = {};
+
   private client: AuthApiClient;
+
   private isRunning: boolean = false;
+
   private pollTimeout: NodeJS.Timeout | null = null;
 
   // Tracking data for workers
@@ -329,7 +335,7 @@ export class CapacityManager {
 
     // Count pending jobs by task definition
     const pendingByDfnArn: Record<string, number> = pollResponse.reduce<
-      Record<string, number>
+    Record<string, number>
     >(
       (current, acc) => {
         const arn = this.config.jobTypes[acc.type]?.taskDefinitionArn;
@@ -347,7 +353,7 @@ export class CapacityManager {
 
     // Determine how many workers are already tracked for each type of job
     const workersByDfnArn: Record<string, number> = this.trackedWorkers.reduce<
-      Record<string, number>
+    Record<string, number>
     >(
       (current, acc) => {
         const arn = acc.taskDefinitionArn;

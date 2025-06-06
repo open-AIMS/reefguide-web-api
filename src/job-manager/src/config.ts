@@ -183,8 +183,8 @@ export function loadConfig(): Config {
     const env = process.env as Record<string, string | number>;
     // Initialize job types configuration object
     const jobTypesConfig: Record<
-      string,
-      RawJobTypeConfig & { jobTypes?: JobType[] }
+    string,
+    RawJobTypeConfig & { jobTypes?: JobType[] }
     > = {};
 
     // Build configuration for each job type

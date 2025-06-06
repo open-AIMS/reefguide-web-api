@@ -63,8 +63,11 @@ export class ApiError extends Error {
  */
 export class AuthApiClient {
   private axiosInstance: AxiosInstance;
+
   private credentials: Credentials;
+
   private tokens: AuthTokens | null = null;
+
   private readonly TOKEN_REFRESH_THRESHOLD = 60; // 1 minute in seconds
 
   /**

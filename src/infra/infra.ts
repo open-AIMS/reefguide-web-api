@@ -175,9 +175,8 @@ export class ReefguideWebApiStack extends cdk.Stack {
         sharedBalancer: networking.sharedBalancer,
         vpc: networking.vpc,
       });
-    }
-    // Lambda mode
-    else {
+    } else {
+      // Lambda mode
       webAPI = new LambdaWebAPI(this, 'web-api', {
         certificate: primaryCert,
         config: config.webAPI,

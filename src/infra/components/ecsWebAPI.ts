@@ -4,16 +4,14 @@ import {
   aws_iam as iam,
   aws_secretsmanager as sm,
 } from 'aws-cdk-lib';
-import * as r53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as r53 from 'aws-cdk-lib/aws-route53';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as r53Targets from 'aws-cdk-lib/aws-route53-targets';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { WebAPIConfig } from '../infraConfig';
 import { SharedBalancer } from './networking';
@@ -63,6 +61,7 @@ export class ECSWebAPI extends Construct {
 
   /** The underlying ECS service */
   public readonly fargateService: ecs.FargateService;
+
   private readonly taskDefinition: ecs.TaskDefinition;
 
   constructor(scope: Construct, id: string, props: ECSWebAPIProps) {
