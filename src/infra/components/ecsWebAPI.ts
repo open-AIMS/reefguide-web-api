@@ -225,11 +225,11 @@ export class ECSWebAPI extends Construct {
         healthyHttpCodes: '200,201,302',
         protocol: elb.Protocol.HTTP,
         healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
+        unhealthyThresholdCount: 5,
         interval: Duration.seconds(30),
         timeout: Duration.seconds(15),
         port: this.internalPort.toString(),
-        path: '/',
+        path: '/api',
       },
       vpc: props.vpc,
     });
