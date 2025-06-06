@@ -153,9 +153,13 @@ export class ReefguideWebApiStack extends cdk.Stack {
       hz: hz,
       // This overrides CSP to allow the browser to use these endpoints
       // App may generate blob object URLs.
-      cspEntries: [reefGuideApi.endpoint, webAPI.endpoint, 'blob:'].concat(
-        ARC_GIS_ENDPOINTS,
-      ),
+      cspEntries: [
+        // S3 bucket downloads within this region
+        `https://*.s3.${cdk.Stack.of(this).region}.amazonaws.com`,
+        reefGuideApi.endpoint,
+        webAPI.endpoint,
+        'blob:',
+      ].concat(ARC_GIS_ENDPOINTS),
     });
 
     const jobSystem = new JobSystem(this, 'job-system', {
