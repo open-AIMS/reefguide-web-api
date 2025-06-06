@@ -1,16 +1,18 @@
 import * as cdk from 'aws-cdk-lib';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { ReefGuideNetworking } from './components/networking';
 import { ReefGuideAPI } from './components/reefGuideAPI';
-import { WebAPI } from './components/webAPI';
+import { LambdaWebAPI } from './components/lambdaWebAPI';
 import { DeploymentConfig } from './infraConfig';
 import { ReefGuideFrontend } from './components/reefGuideFrontend';
 import { JobSystem } from './components/jobs';
 import * as sm from 'aws-cdk-lib/aws-secretsmanager';
 import { Db } from './components/db';
 import { JobType } from '@prisma/client';
+import { ECSWebAPI } from './components/ecsWebAPI';
 
 export interface ReefguideWebApiProps extends cdk.StackProps {
   config: DeploymentConfig;
@@ -124,20 +126,77 @@ export class ReefguideWebApiStack extends cdk.Stack {
     });
     const cluster = reefGuideApi.fargateService.cluster;
 
-    // Web API
-    const webAPI = new WebAPI(this, 'web-api', {
-      certificate: primaryCert,
-      config: config.webAPI,
-      domainName: domains.webAPI,
-      hz: hz,
-      managerCreds: managerCreds,
-      workerCreds: workerCreds,
-      adminCreds: adminCreds,
+    // ==============
+    // STORAGE BUCKET
+    // ==============
 
-      // Expose the cluster information to web API so that it can control it
-      ecsClusterName: cluster.clusterName,
-      ecsServiceName: reefGuideApi.fargateService.serviceName,
+    // Create S3 bucket for job results
+    const storageBucket = new s3.Bucket(this, 'job-storage', {
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      lifecycleRules: [
+        {
+          // Clean up after 30 days
+          expiration: cdk.Duration.days(30),
+        },
+      ],
+      cors: [
+        {
+          // Needed for presigned URLs to work with various headers
+          allowedHeaders: ['*'],
+          // Typically only GET and PUT are needed for presigned operations
+          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT],
+          // TODO tighten this for security - okay for now as only presigned
+          // URLs exposed and want them to be easy to use from anywhere
+          allowedOrigins: ['*'],
+        },
+      ],
     });
+
+    // ========
+    // Web API
+    // ========
+
+    let webAPI: LambdaWebAPI | ECSWebAPI;
+
+    // ECS mode
+    if (config.webAPI.mode.ecs !== undefined) {
+      webAPI = new ECSWebAPI(this, 'web-api', {
+        certificate: primaryCert,
+        config: config.webAPI,
+        storageBucket,
+        domainName: domains.webAPI,
+        hz: hz,
+        managerCreds: managerCreds,
+        workerCreds: workerCreds,
+        adminCreds: adminCreds,
+        reefguideApiClusterName: cluster.clusterName,
+        reefguideApiServiceName: reefGuideApi.fargateService.serviceName,
+        cluster: cluster,
+        sharedBalancer: networking.sharedBalancer,
+        vpc: networking.vpc,
+      });
+    }
+    // Lambda mode
+    else {
+      webAPI = new LambdaWebAPI(this, 'web-api', {
+        certificate: primaryCert,
+        config: config.webAPI,
+        domainName: domains.webAPI,
+        hz: hz,
+        managerCreds: managerCreds,
+        workerCreds: workerCreds,
+        adminCreds: adminCreds,
+
+        // Expose the cluster information to web API so that it can control it
+        ecsClusterName: cluster.clusterName,
+        ecsServiceName: reefGuideApi.fargateService.serviceName,
+      });
+
+      // let the webAPI read write the data storage bucket and tell it about
+      // storage bucket
+      webAPI.addEnv('S3_BUCKET_NAME', storageBucket.bucketName);
+      storageBucket.grantReadWrite(webAPI.lambda);
+    }
 
     // Let the Web API interact with the Julia cluster
     webAPI.registerCluster(reefGuideApi.fargateService);
@@ -162,9 +221,10 @@ export class ReefguideWebApiStack extends cdk.Stack {
       ].concat(ARC_GIS_ENDPOINTS),
     });
 
-    const jobSystem = new JobSystem(this, 'job-system', {
+    new JobSystem(this, 'job-system', {
       vpc: networking.vpc,
       cluster: cluster,
+      storageBucket,
       apiEndpoint: webAPI.endpoint,
       capacityManager: {
         // Measly! But seems to work well
@@ -231,10 +291,5 @@ export class ReefguideWebApiStack extends cdk.Stack {
       workerCreds,
       managerCreds,
     });
-
-    // let the webAPI read write the data storage bucket and tell it about
-    // storage bucket
-    webAPI.addEnv('S3_BUCKET_NAME', jobSystem.storageBucket.bucketName);
-    jobSystem.storageBucket.grantReadWrite(webAPI.lambda);
   }
 }

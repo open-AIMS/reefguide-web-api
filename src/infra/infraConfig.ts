@@ -84,6 +84,35 @@ export const WebAPIConfigSchema = z.object({
   nodeEnv: z.string().default('development'),
   // Server port
   port: z.number().default(5000),
+  // Defaults to lambda mode
+  mode: z.object({
+    ecs: z
+      .object({
+        /** The number of CPU units for the Fargate task */
+        cpu: z.number().int().positive(),
+        /** The amount of memory (in MiB) for the Fargate task */
+        memory: z.number().int().positive(),
+        /** Auto scaling configuration for the reefGuide service */
+        autoScaling: z.object({
+          // Is auto scaling enabled?
+          enabled: z.boolean().default(false),
+          /** The minimum number of tasks to run */
+          minCapacity: z.number().int().positive().default(1),
+          /** The maximum number of tasks that can be run */
+          maxCapacity: z.number().int().positive().default(3),
+          /** The target CPU utilization percentage for scaling */
+          targetCpuUtilization: z.number().min(0).max(100).default(70),
+          /** The target memory utilization percentage for scaling */
+          targetMemoryUtilization: z.number().min(0).max(100).default(95),
+          /** The cooldown period (in seconds) before allowing another scale in action */
+          scaleInCooldown: z.number().int().nonnegative().default(300),
+          /** The cooldown period (in seconds) before allowing another scale out action */
+          scaleOutCooldown: z.number().int().nonnegative().default(150),
+        }),
+      })
+      .optional(),
+    lambda: z.object({}).optional(),
+  }),
 });
 export type WebAPIConfig = z.infer<typeof WebAPIConfigSchema>;
 
