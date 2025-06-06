@@ -17,7 +17,7 @@ import { WebAPIConfig } from '../infraConfig';
 /**
  * Properties for the WebAPI construct
  */
-export interface WebAPIProps {
+export interface LambdaWebAPIProps {
   // Fully qualified domain name
   domainName: string;
   /** The Hosted Zone to produce record in */
@@ -39,7 +39,7 @@ export interface WebAPIProps {
 /**
  * Construct for the web api service
  */
-export class WebAPI extends Construct {
+export class LambdaWebAPI extends Construct {
   /** Internal port for the Web API service */
   public readonly internalPort: number;
 
@@ -52,10 +52,20 @@ export class WebAPI extends Construct {
   /** The underlying lambda function */
   public readonly lambda: lambda.Function;
 
-  constructor(scope: Construct, id: string, props: WebAPIProps) {
+  constructor(scope: Construct, id: string, props: LambdaWebAPIProps) {
     super(scope, id);
 
     const config = props.config;
+    const lambdaConfig = props.config.mode.lambda;
+
+    if (lambdaConfig === undefined) {
+      cdk.Annotations.of(this).addError(
+        'You cannot deploy a lambda web API without providing the lambda mode configuration',
+      );
+      throw new Error(
+        'You cannot deploy a lambda web API without providing the lambda mode configuration',
+      );
+    }
 
     // OUTPUTS
     // ================
@@ -68,18 +78,22 @@ export class WebAPI extends Construct {
     // Web API deployment
     // ==================
 
+    const apiSecrets = sm.Secret.fromSecretCompleteArn(
+      this,
+      'db-creds',
+      config.apiSecretsArn,
+    );
+
+    // ===========
+    // Lambda mode
+    // ===========
+
     const paramsAndSecrets = lambda.ParamsAndSecretsLayerVersion.fromVersion(
       lambda.ParamsAndSecretsVersions.V1_0_103,
       {
         cacheSize: 500,
         logLevel: lambda.ParamsAndSecretsLogLevel.DEBUG,
       },
-    );
-
-    const apiSecrets = sm.Secret.fromSecretCompleteArn(
-      this,
-      'db-creds',
-      config.apiSecretsArn,
     );
 
     // Use the Node JS L3 stack to help esbuild/bundle the Node function see
@@ -115,14 +129,6 @@ export class WebAPI extends Construct {
       paramsAndSecrets,
     });
 
-    // allow read of db secrets
-    apiSecrets.grantRead(this.lambda);
-
-    // Initialisation creds
-    props.managerCreds.grantRead(this.lambda);
-    props.workerCreds.grantRead(this.lambda);
-    props.adminCreds.grantRead(this.lambda);
-
     // Create an API Gateway REST API
     const restApi = new apigateway.RestApi(this, 'apigw', {
       restApiName: 'Reefguide Web API',
@@ -148,17 +154,25 @@ export class WebAPI extends Construct {
       authorizationType: apigateway.AuthorizationType.NONE,
     });
 
-    // Output the URL of the API
-    new cdk.CfnOutput(this, 'web-api-url', {
-      value: this.endpoint,
-      description: 'Web REST API endpoint',
-    });
+    // allow read of db secrets
+    apiSecrets.grantRead(this.lambda);
+
+    // Initialisation creds
+    props.managerCreds.grantRead(this.lambda);
+    props.workerCreds.grantRead(this.lambda);
+    props.adminCreds.grantRead(this.lambda);
 
     // Add a route to the API gateway URL on hosted zone at configured domain
     new route53.ARecord(this, 'route', {
       zone: props.hz,
       target: route53.RecordTarget.fromAlias(new targets.ApiGateway(restApi)),
       recordName: props.domainName,
+    });
+
+    // Output the URL of the API
+    new cdk.CfnOutput(this, 'web-api-url', {
+      value: this.endpoint,
+      description: 'Web REST API endpoint',
     });
   }
 

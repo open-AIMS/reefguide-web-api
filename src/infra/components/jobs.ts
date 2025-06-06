@@ -78,6 +78,8 @@ export interface JobSystemProps {
   cluster: ecs.ICluster;
   // Domain and auth
   apiEndpoint: string;
+  // Storage bucket
+  storageBucket: s3.IBucket;
 
   // Capacity manager configuration
   capacityManager: {
@@ -95,9 +97,6 @@ export interface JobSystemProps {
 }
 
 export class JobSystem extends Construct {
-  // The S3 bucket for job results
-  public readonly storageBucket: s3.Bucket;
-
   // Task definitions for each job type
   public readonly taskDefinitions: Record<string, ecs.TaskDefinition>;
 
@@ -121,28 +120,6 @@ export class JobSystem extends Construct {
       return;
     }
 
-    // Create S3 bucket for job results
-    this.storageBucket = new s3.Bucket(this, 'job-storage', {
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      lifecycleRules: [
-        {
-          // Clean up after 30 days
-          expiration: Duration.days(30),
-        },
-      ],
-      cors: [
-        {
-          // Needed for presigned URLs to work with various headers
-          allowedHeaders: ['*'],
-          // Typically only GET and PUT are needed for presigned operations
-          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT],
-          // TODO tighten this for security - okay for now as only presigned
-          // URLs exposed and want them to be easy to use from anywhere
-          allowedOrigins: ['*'],
-        },
-      ],
-    });
-
     // Create a security group for worker tasks
     const workerSg = new ec2.SecurityGroup(this, 'worker-sg', {
       vpc: props.vpc,
@@ -161,7 +138,7 @@ export class JobSystem extends Construct {
       });
 
       // Grant task role access to S3 bucket
-      this.storageBucket.grantReadWrite(taskDef.taskRole);
+      props.storageBucket.grantReadWrite(taskDef.taskRole);
 
       // Add efs config if necessary
       if (workerConfig.efsMounts) {
@@ -186,7 +163,7 @@ export class JobSystem extends Construct {
           API_ENDPOINT: props.apiEndpoint,
           AWS_REGION: Stack.of(this).region,
           JOB_TYPES: workerConfig.jobTypes.join(','),
-          S3_BUCKET_NAME: this.storageBucket.bucketName,
+          S3_BUCKET_NAME: props.storageBucket.bucketName,
           // Custom additional environment variables
           ...(workerConfig.env ?? {}),
         },

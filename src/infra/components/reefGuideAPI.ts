@@ -106,7 +106,7 @@ export class ReefGuideAPI extends Construct {
       this,
       'reefguide-task-dfn',
       {
-        ephemeralStorageGiB: 21, // 20GB ephemeral storage (minimum)
+        ephemeralStorageGiB: 21, // 21GB ephemeral storage (minimum)
         cpu: props.config.cpu,
         memoryLimitMiB: props.config.memory,
       },

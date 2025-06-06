@@ -38,12 +38,18 @@ interface TrackedWorker {
  */
 export class CapacityManager {
   private config: Config;
+
   private ecsClient: ECSClient;
+
   private ec2Client: EC2Client;
+
   // Tracks the last scaled time for a given task definition ARN
   private lastScaleTime: Record<string, number> = {};
+
   private client: AuthApiClient;
+
   private isRunning: boolean = false;
+
   private pollTimeout: NodeJS.Timeout | null = null;
 
   // Tracking data for workers

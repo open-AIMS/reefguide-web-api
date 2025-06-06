@@ -8,6 +8,7 @@
   "main": "src/api/index.ts",
   "scripts": {
     "start": "env-cmd ts-node --files src/api/index.ts",
+    "start-web-api-docker": "ts-node -T --files src/api/index.ts",
     "watch": "tsc -w",
     "dev": "env-cmd ts-node-dev --files src/api/index.ts",
     "build": "tsc",
