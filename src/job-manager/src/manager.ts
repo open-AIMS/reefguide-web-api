@@ -335,7 +335,7 @@ export class CapacityManager {
 
     // Count pending jobs by task definition
     const pendingByDfnArn: Record<string, number> = pollResponse.reduce<
-    Record<string, number>
+      Record<string, number>
     >(
       (current, acc) => {
         const arn = this.config.jobTypes[acc.type]?.taskDefinitionArn;
@@ -353,7 +353,7 @@ export class CapacityManager {
 
     // Determine how many workers are already tracked for each type of job
     const workersByDfnArn: Record<string, number> = this.trackedWorkers.reduce<
-    Record<string, number>
+      Record<string, number>
     >(
       (current, acc) => {
         const arn = acc.taskDefinitionArn;

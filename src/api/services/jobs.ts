@@ -148,9 +148,9 @@ export class JobService {
     jobType: JobType,
     jobId: number,
   ): {
-      scheme: StorageScheme;
-      uri: string;
-    } {
+    scheme: StorageScheme;
+    uri: string;
+  } {
     const bucketName = config.s3.bucketName;
     const bucketPrefix = 'results';
     return {
