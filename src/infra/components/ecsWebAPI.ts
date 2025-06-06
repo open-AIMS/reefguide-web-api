@@ -98,18 +98,18 @@ export class ECSWebAPI extends Construct {
     });
 
     // Task definition
-    const taskDefinition = new ecs.FargateTaskDefinition(
+    this.taskDefinition = new ecs.FargateTaskDefinition(
       this,
       'web-api-task-dfn',
       {
-        ephemeralStorageGiB: 20, // 20GB ephemeral storage (minimum)
+        ephemeralStorageGiB: 21, // 21GB ephemeral storage (minimum)
         cpu: ecsConfig.cpu,
         memoryLimitMiB: ecsConfig.memory,
       },
     );
 
     // R/W S3 bucket
-    props.storageBucket.grantReadWrite(taskDefinition.taskRole);
+    props.storageBucket.grantReadWrite(this.taskDefinition.taskRole);
 
     // DB secrets and JWT key info
     const apiSecrets = sm.Secret.fromSecretCompleteArn(
@@ -119,7 +119,7 @@ export class ECSWebAPI extends Construct {
     );
 
     // Attach container to task definition
-    const containerDfn = taskDefinition.addContainer('web-api-container-dfn', {
+    this.taskDefinition.addContainer('web-api-container-dfn', {
       image,
       portMappings: [
         {
@@ -128,6 +128,7 @@ export class ECSWebAPI extends Construct {
           name: 'web-api-port',
         },
       ],
+      command: ['npm', 'run', 'start-web-api-docker'],
       // Non secrets
       environment: {
         NODE_ENV: config.nodeEnv,
@@ -141,6 +142,7 @@ export class ECSWebAPI extends Construct {
         ECS_CLUSTER_NAME: props.reefguideApiClusterName,
         ECS_SERVICE_NAME: props.reefguideApiServiceName,
 
+        // Storage bucket name
         S3_BUCKET_NAME: props.storageBucket.bucketName,
       },
       secrets: {
@@ -153,9 +155,9 @@ export class ECSWebAPI extends Construct {
         ),
         JWT_PUBLIC_KEY: ecs.Secret.fromSecretsManager(
           apiSecrets,
-          'JWT_PUBLIC_KEY,',
+          'JWT_PUBLIC_KEY',
         ),
-        JWT_KEY_ID: ecs.Secret.fromSecretsManager(apiSecrets, 'JWT_KEY_ID,'),
+        JWT_KEY_ID: ecs.Secret.fromSecretsManager(apiSecrets, 'JWT_KEY_ID'),
 
         // Worker creds
         MANAGER_USERNAME: ecs.Secret.fromSecretsManager(
@@ -203,7 +205,7 @@ export class ECSWebAPI extends Construct {
     // Create Fargate Service
     this.fargateService = new ecs.FargateService(this, 'web-api-service', {
       cluster: props.cluster,
-      taskDefinition,
+      taskDefinition: this.taskDefinition,
       desiredCount: 1,
       securityGroups: [serviceSecurityGroup],
       assignPublicIp: true,
