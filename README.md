@@ -1,3 +1,22 @@
+# ⚠️ DEPRECATED / ARCHIVED
+
+> **This repository is deprecated and no longer maintained.**
+
+## Why is this deprecated?
+
+ReefGuide Web API has been integrated into the ReefGuide monorepo, constituting the `api` sub-package for the ReefGuide application.
+
+See the [reefguide repo](https://github.com/open-AIMS/reefguide).
+
+## Need Help?
+
+If you have questions or concerns about this deprecation, please contact the ReefGuide development team.
+---
+
+*This notice was added on 11/7/25. The repository will remain accessible for historical reference.*
+
+---
+
 # ReefGuide Web API - Developer Guide
 
 A REST API to support Reef Guide (AIMS), built with Express, TypeScript, Zod and Prisma, deployable to AWS using CDK.
